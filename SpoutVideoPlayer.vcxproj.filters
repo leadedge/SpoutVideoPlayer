@@ -1,0 +1,105 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="src\ofApp.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\main.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\addons\ofxWinMenu\ofxWinMenu.cpp">
+      <Filter>Addons\ofxWinMenu</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\addons\ofxNDI\src\ofxNDIreceiver.cpp">
+      <Filter>Addons\ofxNDI\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\addons\ofxNDI\src\ofxNDIsender.cpp">
+      <Filter>Addons\ofxNDI\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\addons\ofxNDI\src\ofxNDIutils.cpp">
+      <Filter>Addons\ofxNDI\src</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="src">
+      <UniqueIdentifier>{d8376475-7454-4a24-b08a-aac121d3ad6f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Addons">
+      <UniqueIdentifier>{30ec975d-63e8-44db-b0f2-481e2e3cedc3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Addons\ofxWinMenu">
+      <UniqueIdentifier>{df7af64a-1db7-46d4-b87d-5021b0b4cc60}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Addons\ofxNDI">
+      <UniqueIdentifier>{8e960493-1d71-4f6d-a643-8ecbf3be8216}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Addons\ofxNDI\src">
+      <UniqueIdentifier>{2a66c9a6-4bc1-49c6-b008-46776759412a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Addons\ofxNDI\include">
+      <UniqueIdentifier>{494e4f51-90e1-44bd-ae95-97db532d5043}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\ofApp.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxWinMenu\ofxWinMenu.h">
+      <Filter>Addons\ofxWinMenu</Filter>
+    </ClInclude>
+    <ClInclude Include="src\resource.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDI.h">
+      <Filter>Addons\ofxNDI\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDIreceiver.h">
+      <Filter>Addons\ofxNDI\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDIsender.h">
+      <Filter>Addons\ofxNDI\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDIutils.h">
+      <Filter>Addons\ofxNDI\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxNDI\include\Processing.NDI.compat.h">
+      <Filter>Addons\ofxNDI\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxNDI\include\Processing.NDI.DynamicLoad.h">
+      <Filter>Addons\ofxNDI\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxNDI\include\Processing.NDI.Find.h">
+      <Filter>Addons\ofxNDI\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxNDI\include\Processing.NDI.Lib.cplusplus.h">
+      <Filter>Addons\ofxNDI\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxNDI\include\Processing.NDI.Lib.h">
+      <Filter>Addons\ofxNDI\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxNDI\include\Processing.NDI.Recv.h">
+      <Filter>Addons\ofxNDI\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxNDI\include\Processing.NDI.Routing.h">
+      <Filter>Addons\ofxNDI\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxNDI\include\Processing.NDI.Send.h">
+      <Filter>Addons\ofxNDI\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxNDI\include\Processing.NDI.structs.h">
+      <Filter>Addons\ofxNDI\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxNDI\include\Processing.NDI.structs_deprecated.h">
+      <Filter>Addons\ofxNDI\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxNDI\include\Processing.NDI.utilities.h">
+      <Filter>Addons\ofxNDI\include</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="icon.rc" />
+    <ResourceCompile Include="src\resource.rc">
+      <Filter>src</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+</Project>
