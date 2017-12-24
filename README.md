@@ -17,6 +17,11 @@ NDI - http://NDI.NewTek.com/
 Refer to the ofxNDI addon for further information concerning NDI.
 
 ----------------------
+Credit for the icons and progress bar - https://github.com/ACMILabs/mini-vod
+The MIT License (MIT)
+Copyright (c) 2016 the Australian Centre for the Miving Image (ACMI)
+
+----------------------
 NDI SDK - Copyright NewTek Inc. [http://NDI.NewTek.com](http://NDI.NewTek.com).
 
 A license agreement is included with the Newtek SDK when you receive it after registration with NewTek.
