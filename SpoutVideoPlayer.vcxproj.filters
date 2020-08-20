@@ -19,6 +19,15 @@
     <ClCompile Include="..\..\..\addons\ofxNDI\src\ofxNDIutils.cpp">
       <Filter>Addons\ofxNDI\src</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\addons\ofxNDI\src\ofxNDIdynloader.cpp">
+      <Filter>Addons\ofxNDI\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\addons\ofxNDI\src\ofxNDIreceive.cpp">
+      <Filter>Addons\ofxNDI\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\addons\ofxNDI\src\ofxNDIsend.cpp">
+      <Filter>Addons\ofxNDI\src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="src">
@@ -35,9 +44,6 @@
     </Filter>
     <Filter Include="Addons\ofxNDI\src">
       <UniqueIdentifier>{2a66c9a6-4bc1-49c6-b008-46776759412a}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Addons\ofxNDI\include">
-      <UniqueIdentifier>{494e4f51-90e1-44bd-ae95-97db532d5043}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -62,38 +68,17 @@
     <ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDIutils.h">
       <Filter>Addons\ofxNDI\src</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\addons\ofxNDI\include\Processing.NDI.compat.h">
-      <Filter>Addons\ofxNDI\include</Filter>
+    <ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDIdynloader.h">
+      <Filter>Addons\ofxNDI\src</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\addons\ofxNDI\include\Processing.NDI.DynamicLoad.h">
-      <Filter>Addons\ofxNDI\include</Filter>
+    <ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDIplatforms.h">
+      <Filter>Addons\ofxNDI\src</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\addons\ofxNDI\include\Processing.NDI.Find.h">
-      <Filter>Addons\ofxNDI\include</Filter>
+    <ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDIreceive.h">
+      <Filter>Addons\ofxNDI\src</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\addons\ofxNDI\include\Processing.NDI.Lib.cplusplus.h">
-      <Filter>Addons\ofxNDI\include</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\addons\ofxNDI\include\Processing.NDI.Lib.h">
-      <Filter>Addons\ofxNDI\include</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\addons\ofxNDI\include\Processing.NDI.Recv.h">
-      <Filter>Addons\ofxNDI\include</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\addons\ofxNDI\include\Processing.NDI.Routing.h">
-      <Filter>Addons\ofxNDI\include</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\addons\ofxNDI\include\Processing.NDI.Send.h">
-      <Filter>Addons\ofxNDI\include</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\addons\ofxNDI\include\Processing.NDI.structs.h">
-      <Filter>Addons\ofxNDI\include</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\addons\ofxNDI\include\Processing.NDI.structs_deprecated.h">
-      <Filter>Addons\ofxNDI\include</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\addons\ofxNDI\include\Processing.NDI.utilities.h">
-      <Filter>Addons\ofxNDI\include</Filter>
+    <ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDIsend.h">
+      <Filter>Addons\ofxNDI\src</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

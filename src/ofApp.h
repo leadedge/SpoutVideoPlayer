@@ -27,7 +27,10 @@
 #include "resource.h"
 #include <shlwapi.h>  // for path functions
 #include <Shellapi.h> // for shellexecute
+
 #pragma comment(lib, "shlwapi.lib")  // for path functions
+#pragma comment(lib, "Version.lib") // for GetFileVersionInfo
+
 
 class ofApp : public ofBaseApp{
 	public:
@@ -128,7 +131,7 @@ class ofApp : public ofBaseApp{
 		int nOldFrames;
 		int nNewFrames;
 		void setVideoPlaypause();
-		void HandleControlButtons(int x, int y);
+		void HandleControlButtons(float x, float y);
 		void drawPlayBar();
 
 		// Menu
@@ -137,6 +140,7 @@ class ofApp : public ofBaseApp{
 
 		bool bSplash;
 		bool bShowControls;
+		bool bShowInfo;
 		bool bTopmost;
 		bool bFullscreen;
 		bool bResizeWindow;

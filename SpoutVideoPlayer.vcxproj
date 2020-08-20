@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -22,30 +22,30 @@
     <ProjectGuid>{7FD42DF7-442E-479A-BA76-D0022F99702A}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>emptyExample</RootNamespace>
-    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.19041.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <CharacterSet>Unicode</CharacterSet>
     <WholeProgramOptimization>true</WholeProgramOptimization>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <CharacterSet>Unicode</CharacterSet>
     <WholeProgramOptimization>true</WholeProgramOptimization>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
@@ -96,15 +96,15 @@
       <PreprocessorDefinitions>%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
-      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);src</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(OF_ROOT)\addons\ofxWinMenu;$(OF_ROOT)\addons\ofxNDI\src;$(OF_ROOT)\addons\ofxNDI\include;$(OF_ROOT)\addons\ofxNDI\libs\NDI\include;src</AdditionalIncludeDirectories>
       <CompileAs>CompileAsCpp</CompileAs>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <RandomizedBaseAddress>false</RandomizedBaseAddress>
-      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>SpoutLibrary.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(OF_ROOT)\addons\ofxNDI\libs\NDI\Libs\x86;$(OF_ROOT)\libs\glew\lib\vs;libs;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent />
   </ItemDefinitionGroup>
@@ -134,7 +134,7 @@
       <PreprocessorDefinitions>%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
-      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(OF_ROOT)\addons\ofxWinMenu;$(OF_ROOT)\addons\ofxHapPlayer\src;$(OF_ROOT)\addons\ofxHapPlayer\libs\HapSupport\src;$(OF_ROOT)\addons\ofxNDI\src;$(OF_ROOT)\addons\ofxNDI\include;$(OF_ROOT)\addons\ofxDSHapPlayer\src;$(OF_ROOT)\addons\ofxDSHapPlayer\libs\External\Directshow\BaseClasses;$(OF_ROOT)\addons\ofxDSHapPlayer\libs\External\snappy;$(OF_ROOT)\addons\ofxWMFVideoPlayer\libs;$(OF_ROOT)\addons\ofxWMFVideoPlayer\src;$(OF_ROOT)\addons\ofxWMFVideoPlayer\src\presenter;$(OF_ROOT)\addons\ofxWMFVideoPlayer\src\presenter\common;src</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(OF_ROOT)\addons\ofxWinMenu;$(OF_ROOT)\addons\ofxNDI\src;$(OF_ROOT)\addons\ofxNDI\include;$(OF_ROOT)\addons\ofxNDI\libs\NDI\include;src</AdditionalIncludeDirectories>
       <CompileAs>CompileAsCpp</CompileAs>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
@@ -145,8 +145,8 @@
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <RandomizedBaseAddress>false</RandomizedBaseAddress>
-      <AdditionalDependencies>Processing.NDI.Lib.x86.lib;SpoutLibrary.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(OF_ROOT)\addons\ofxNDI\libs\NDI\Libs\x86;$(OF_ROOT)\addons\ofxDSHapPlayer\libs;$(OF_ROOT)\libs\glew\lib\vs;libs;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>SpoutLibrary.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(OF_ROOT)\addons\ofxNDI\libs\NDI\Libs\x86;$(OF_ROOT)\libs\glew\lib\vs;libs;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
     </Link>
     <PostBuildEvent />
@@ -177,7 +177,10 @@
     <PostBuildEvent />
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\addons\ofxNDI\src\ofxNDIdynloader.cpp" />
+    <ClCompile Include="..\..\..\addons\ofxNDI\src\ofxNDIreceive.cpp" />
     <ClCompile Include="..\..\..\addons\ofxNDI\src\ofxNDIreceiver.cpp" />
+    <ClCompile Include="..\..\..\addons\ofxNDI\src\ofxNDIsend.cpp" />
     <ClCompile Include="..\..\..\addons\ofxNDI\src\ofxNDIsender.cpp" />
     <ClCompile Include="..\..\..\addons\ofxNDI\src\ofxNDIutils.cpp" />
     <ClCompile Include="..\..\..\addons\ofxWinMenu\ofxWinMenu.cpp" />
@@ -185,19 +188,12 @@
     <ClCompile Include="src\ofApp.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\addons\ofxNDI\include\Processing.NDI.compat.h" />
-    <ClInclude Include="..\..\..\addons\ofxNDI\include\Processing.NDI.DynamicLoad.h" />
-    <ClInclude Include="..\..\..\addons\ofxNDI\include\Processing.NDI.Find.h" />
-    <ClInclude Include="..\..\..\addons\ofxNDI\include\Processing.NDI.Lib.cplusplus.h" />
-    <ClInclude Include="..\..\..\addons\ofxNDI\include\Processing.NDI.Lib.h" />
-    <ClInclude Include="..\..\..\addons\ofxNDI\include\Processing.NDI.Recv.h" />
-    <ClInclude Include="..\..\..\addons\ofxNDI\include\Processing.NDI.Routing.h" />
-    <ClInclude Include="..\..\..\addons\ofxNDI\include\Processing.NDI.Send.h" />
-    <ClInclude Include="..\..\..\addons\ofxNDI\include\Processing.NDI.structs.h" />
-    <ClInclude Include="..\..\..\addons\ofxNDI\include\Processing.NDI.structs_deprecated.h" />
-    <ClInclude Include="..\..\..\addons\ofxNDI\include\Processing.NDI.utilities.h" />
     <ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDI.h" />
+    <ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDIdynloader.h" />
+    <ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDIplatforms.h" />
+    <ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDIreceive.h" />
     <ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDIreceiver.h" />
+    <ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDIsend.h" />
     <ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDIsender.h" />
     <ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDIutils.h" />
     <ClInclude Include="..\..\..\addons\ofxWinMenu\ofxWinMenu.h" />
