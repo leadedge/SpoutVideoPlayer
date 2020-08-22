@@ -2,7 +2,7 @@
 
 	Spout Video Player
 
-	Copyright (C) 2017 Lynn Jarvis.
+	Copyright (C) 2017-2020 Lynn Jarvis.
 
 	=========================================================================
 	This program is free software: you can redistribute it and/or modify
@@ -32,6 +32,8 @@
 				  Cleanup throughout.
 				  Tested with the most recent Klite Codec pack
 				  (Basic pack without player)
+	22.08.20	- Add audio mute
+				  Change progress bar position if no info
 
 */
 #include "ofApp.h"
@@ -134,19 +136,20 @@ void ofApp::setup(){
 	//
 	hPopup = menu->AddPopupMenu(hMenu, "View");
 	bShowControls = false;  // screen info display on
-	menu->AddPopupItem(hPopup, "Controls", false, false);
+	menu->AddPopupItem(hPopup, "Controls");
 	bLoop = false;  // movie loop
-	menu->AddPopupItem(hPopup, "Loop", false, false);
+	menu->AddPopupItem(hPopup, "Loop");
+	bMute = false; // Audio mute
+	menu->AddPopupItem(hPopup, "Mute");
 	bResizeWindow = false; // not resizing
 	menu->AddPopupItem(hPopup, "Resize to movie", false, false); // Not checked and not auto-check
-	
-	menu->AddPopupSeparator(hPopup);
 	bShowInfo = true;
-	menu->AddPopupItem(hPopup, "Info", true, false); // Checked and not auto-check
+	menu->AddPopupItem(hPopup, "Info", true); // Checked and auto-check
 	bFullscreen = false; // not fullscreen yet
 	menu->AddPopupItem(hPopup, "Full screen", false, false); // Not checked and not auto-check
 	bTopmost = false; // app is not topmost yet
 	menu->AddPopupItem(hPopup, "Show on top"); // Not checked (default)
+
 
 	//
 	// Output popup menu
@@ -165,16 +168,17 @@ void ofApp::setup(){
 	menu->AddPopupItem(hPopup, "Information", false, false); // No auto check
 	menu->AddPopupItem(hPopup, "About", false, false); // No auto check
 
-	// Get the starting window size for movie loading allowing for the menu.
-	windowWidth = ofGetWidth();
-	windowHeight = ofGetHeight() + (float)GetSystemMetrics(SM_CYMENU);
-	ofSetWindowShape(windowWidth, windowHeight);
+	// Set the menu to the window
+	menu->SetWindowMenu();
+
+	// Get the starting window size
+	windowWidth = 640;
+	windowHeight = 360;
+	// Set window shape allowing for the menu
+	ofSetWindowShape(windowWidth, windowHeight + (float)GetSystemMetrics(SM_CYMENU));
 
 	// Centre on the screen
 	ofSetWindowPosition((ofGetScreenWidth() - windowWidth) / 2, (ofGetScreenHeight() - windowHeight) / 2);
-
-	// Set the menu to the window
-	menu->SetWindowMenu();
 
 	bMenuExit = false; // to handle mouse position
 	bMessageBox = false; // To handle messagebox and mouse events
@@ -221,6 +225,8 @@ void ofApp::setup(){
 	icon_pause.load("icons/pause.png");
 	icon_forward.load("icons/forward.png");
 	icon_full_screen.load("icons/full_screen.png");
+	icon_sound.load("icons/speaker.png");
+	icon_mute.load("icons/speaker_mute.png");
 
 	icon_reverse.resize(icon_size, icon_size);
 	icon_fastforward.resize(icon_size, icon_size);
@@ -229,6 +235,8 @@ void ofApp::setup(){
 	icon_back.resize(icon_size, icon_size);
 	icon_forward.resize(icon_size, icon_size);
 	icon_full_screen.resize(icon_size, icon_size);
+	icon_sound.resize(icon_size, icon_size);
+	icon_mute.resize(icon_size, icon_size);
 
 	icon_playpause_hover = false;
 	icon_reverse_hover = false;
@@ -236,6 +244,7 @@ void ofApp::setup(){
 	icon_back_hover = false;
 	icon_forward_hover = false;
 	icon_fullscreen_hover = false;
+	icon_sound_hover = false;
 
 	icon_highlight_color = ofColor(ofColor(74, 144, 226, 255));
 	icon_background_color = ofColor(128, 128, 128, 255);
@@ -268,7 +277,6 @@ void ofApp::setup(){
 	
 	// Optionally set NDI asynchronous sending instead of clocked at 60fps
 	NDIsender.SetAsync(false); // change to true for async
-	// strcpy_s(NDIsendername, 256, "Spout Video Player");
 	// Get NewTek library version number (dll) for the about box
 	// Version number is the last 7 chars - e.g 2.1.0.3
 	string NDIversion = NDIsender.GetNDIversion();
@@ -298,7 +306,6 @@ void ofApp::update() {
 
 		// Check the old frame count
 		// if excessive, the movie is not playing
-		// if (myMovie.isFrameNew()) {
 		if (myMovie.isFrameNew()) {
 
 			nOldFrames = 0;
@@ -389,7 +396,6 @@ void ofApp::draw() {
 	// NDI
 	if (bNDIout) {
 		if (!bNDIinitialized) {
-			// if (NDIsender.CreateSender(sendername, ResolutionWidth, ResolutionHeight, NDIlib_FourCC_type_RGBA)) {
 			if (NDIsender.CreateSender(sendername, ResolutionWidth, ResolutionHeight)) {
 				bNDIinitialized = true;
 				// Reset buffers
@@ -436,9 +442,10 @@ void ofApp::drawPlayBar()
 	//
 	// Play bar
 	//
+
 	// Position of the first button
 	float icon_pos_x = icon_size / 2;
-	float icon_pos_y = controlbar_pos_y + progress_bar.height * 2;
+	float icon_pos_y = progress_bar.getTop() + progress_bar.height *1.5;
 
 	// Draw controls unless the startup image is showing
 	if (!bSplash) {
@@ -446,18 +453,18 @@ void ofApp::drawPlayBar()
 		// Show the control buttons and progress bar
 		if (bShowControls) {
 
-			ofEnableAlphaBlending();
-			ofSetColor(26, 26, 26, 96);
 			controlbar_pos_y = (float)ofGetHeight() - controlbar_height;
 			controlbar_width = (float)ofGetWidth();
-			ofDrawRectangle(0, controlbar_pos_y, controlbar_width, controlbar_height);
 
 			progress_bar.x = 0;
 			progress_bar.width = (float)ofGetWidth();
-			if (bShowControls)
-				progress_bar.y = controlbar_pos_y;
-			else
-				progress_bar.y = ofGetHeight() - 8;
+			progress_bar.y = controlbar_pos_y;
+			if (!bShowInfo)
+				progress_bar.y += 14;
+
+			ofEnableAlphaBlending();
+			ofSetColor(26, 26, 26, 96);
+			ofDrawRectangle(0, progress_bar.y, controlbar_width, controlbar_height);
 
 			// If the movie is loaded, show the control bar
 			// bLoaded is set in OpenMovieFile
@@ -575,17 +582,34 @@ void ofApp::drawPlayBar()
 			ofSetColor(255);
 			icon_full_screen.draw(icon_fullscreen_pos_x, icon_fullscreen_pos_y);
 
+			// Sound play / mute
+			icon_sound_pos_x = ofGetWidth() - (icon_size*3.0);
+			icon_sound_pos_y = icon_pos_y;
+			if (icon_sound_hover)
+				ofSetColor(icon_highlight_color);
+			else
+				ofSetColor(icon_background_color);
+			icon_background.x = icon_sound_pos_x;
+			icon_background.y = icon_sound_pos_y;
+			icon_background.width = icon_size;
+			icon_background.height = icon_size;
+			ofDrawRectRounded(icon_background, 2);
+
+			// Draw sound button
+			ofSetColor(255);
+			if (bMute)
+				icon_mute.draw(icon_sound_pos_x, icon_sound_pos_y);
+			else
+				icon_sound.draw(icon_sound_pos_x, icon_sound_pos_y);
+
 			ofDisableAlphaBlending();
-		} // ensif show controls
+		} // endif show controls
 	} // endif no splash image
 
 	// Show keyboard duplicates of menu functions if not full screen
 	if (!bFullscreen && bShowInfo) {
-		// ofSetColor(128);
-		// sprintf_s(str, 256, "'  ' show info : 'c' show controls : 'p' pause : 'f' fullscreen");
-		sprintf_s(str, 256, "'  ' show controls : 'h' show info : 'p' pause : 'f' fullscreen");
-		myFont.drawString(str, (ofGetWidth() - myFont.stringWidth(str)) / 2,
-			(ofGetHeight() - icon_size / 2 - 2));
+		sprintf_s(str, 256, "'  ' show controls : 'h' show info : 'p' pause : 'm' mute : 'f' fullscreen");
+		myFont.drawString(str, (ofGetWidth() - myFont.stringWidth(str)) / 2, (ofGetHeight() - 3));
 		ofSetColor(255);
 	}
 	// ============ end playbar controls ==============
@@ -663,6 +687,17 @@ void ofApp::keyPressed(int key) {
 		}
 	}
 
+	if (key == 'm' || key == 'm') {
+		if (bLoaded) {
+			bMute = !bMute;
+			if (bMute)
+				myMovie.setVolume(0.0f);
+			else
+				myMovie.setVolume(1.0f);
+			menu->SetPopupItem("Mute", bMute);
+		}
+	}
+
 	if (key == ' ') {
 		if (bLoaded) {
 			bShowControls = !bShowControls;
@@ -730,6 +765,7 @@ void ofApp::mouseMoved(int x, int y) {
 	icon_forward_hover = false;
 	icon_fastforward_hover = false;
 	icon_fullscreen_hover = false;
+	icon_sound_hover = false;
 
 	if (bShowControls && !bFullscreen) {
 
@@ -773,6 +809,13 @@ void ofApp::mouseMoved(int x, int y) {
 			y >= (icon_fastforward_pos_y) &&
 			y <= (icon_fastforward_pos_y + icon_size)) {
 			icon_fastforward_hover = true;
+		}
+
+		if (x >= (icon_sound_pos_x) &&
+			x <= (icon_sound_pos_x + icon_size) &&
+			y >= (icon_sound_pos_y) &&
+			y <= (icon_sound_pos_y + icon_size)) {
+			icon_sound_hover = true;
 		}
 
 	} // end controls hover
@@ -907,6 +950,19 @@ void ofApp::HandleControlButtons(float x, float y) {
 			doFullScreen(bFullscreen);
 	}
 
+	// Sound
+	else if (myMovie.isLoaded() &&
+		x >= (icon_sound_pos_x) &&
+		x <= (icon_sound_pos_x + icon_size) &&
+		y >= (icon_sound_pos_y) &&
+		y <= (icon_sound_pos_y + icon_size)) {
+		bMute = !bMute;
+		if (bMute)
+			myMovie.setVolume(0.0f);
+		else
+			myMovie.setVolume(1.0f);
+	}
+
 }
 
 
@@ -1013,8 +1069,6 @@ bool ofApp::OpenMovieFile(string filePath) {
 		PathStripPathA(sendername);
 		PathRemoveExtensionA(sendername);
 
-
-
 	}
 
 	// It got this far OK
@@ -1043,12 +1097,13 @@ void ofApp::ResetWindow()
 			windowHeight = windowWidth*movieHeight / movieWidth;
 		}
 
-		// Allow for the menu
-		windowHeight += (float)GetSystemMetrics(SM_CYMENU);
-	}
+		// Set window size
+		ofSetWindowShape(windowWidth, windowHeight + (float)GetSystemMetrics(SM_CYMENU));
 
-	// Centre on the screen
-	ofSetWindowPosition((ofGetScreenWidth() - windowWidth) / 2, (ofGetScreenHeight() - windowHeight) / 2);
+		// Centre on the screen
+		ofSetWindowPosition((ofGetScreenWidth() - windowWidth) / 2, (ofGetScreenHeight() - windowHeight) / 2);
+
+	}
 
 }
 
@@ -1117,15 +1172,25 @@ void ofApp::appMenuFunction(string title, bool bChecked) {
 	//
 
 	if (title == "Loop") {
-		bLoop = !bLoop;
-		menu->SetPopupItem("Loop", bLoop);
+		bLoop = bChecked;
 		if (bLoop)
 			myMovie.setLoopState(OF_LOOP_NORMAL);
 		else
 			myMovie.setLoopState(OF_LOOP_NONE);
 	}
 
+	if (title == "Mute") {
+		bMute = bChecked;
+		if (bLoaded) {
+			if (bMute)
+				myMovie.setVolume(0.0f);
+			else
+				myMovie.setVolume(1.0f);
+		}
+	}
+
 	if (title == "Controls") {
+
 		if (bSplash) {
 			doMessageBox(NULL, "No video loaded", "SpoutVideoPlayer", MB_ICONERROR);
 			return;
@@ -1157,8 +1222,7 @@ void ofApp::appMenuFunction(string title, bool bChecked) {
 
 	
 	if (title == "Info") {
-		bShowInfo = !bShowInfo;
-		printf("bShowInfo = %d\n", bShowInfo);
+		bShowInfo = bChecked;
 	}
 
 	if (title == "Full screen") {
@@ -1168,9 +1232,8 @@ void ofApp::appMenuFunction(string title, bool bChecked) {
 
 	if (title == "Resize to movie") {
 		bResizeWindow = !bResizeWindow;
+		ResetWindow();
 		menu->SetPopupItem("Resize to movie", bResizeWindow);
-		if(bResizeWindow)
-			ResetWindow();
 	}
 
 	if (title == "Spout") {
@@ -1336,6 +1399,11 @@ void ofApp::WriteInitFile(const char *initfile)
 	else
 		WritePrivateProfileStringA((LPCSTR)"Options", (LPCSTR)"loop", (LPCSTR)"0", (LPCSTR)initfile);
 
+	if (bMute)
+		WritePrivateProfileStringA((LPCSTR)"Options", (LPCSTR)"mute", (LPCSTR)"1", (LPCSTR)initfile);
+	else
+		WritePrivateProfileStringA((LPCSTR)"Options", (LPCSTR)"mute", (LPCSTR)"0", (LPCSTR)initfile);
+
 	if (bResizeWindow)
 		WritePrivateProfileStringA((LPCSTR)"Options", (LPCSTR)"resize", (LPCSTR)"1", (LPCSTR)initfile);
 	else
@@ -1401,6 +1469,9 @@ void ofApp::ReadInitFile()
 	//
 	GetPrivateProfileStringA((LPCSTR)"Options", (LPSTR)"loop", NULL, (LPSTR)tmp, 3, initfile);
 	if (tmp[0]) bLoop = (atoi(tmp) == 1);
+
+	GetPrivateProfileStringA((LPCSTR)"Options", (LPSTR)"mute", NULL, (LPSTR)tmp, 3, initfile);
+	if (tmp[0]) bMute = (atoi(tmp) == 1);
 
 	GetPrivateProfileStringA((LPCSTR)"Options", (LPSTR)"resize", NULL, (LPSTR)tmp, 3, initfile);
 	if (tmp[0]) bResizeWindow = (atoi(tmp) == 1);

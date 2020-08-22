@@ -84,6 +84,9 @@ class ofApp : public ofBaseApp{
 		ofImage			icon_forward;
 		ofImage			icon_back;
 		ofImage			icon_full_screen;
+		ofImage			icon_sound;
+		ofImage			icon_mute;
+
 		
 		// Things to display the icons
 		ofRectangle		icon_background;
@@ -91,6 +94,9 @@ class ofApp : public ofBaseApp{
 		float			icon_playpause_pos_x;
 		float			icon_playpause_pos_y;
 		bool			icon_playpause_hover;
+		float			icon_sound_pos_x;
+		float			icon_sound_pos_y;
+		bool			icon_sound_hover;
 		float			icon_fullscreen_pos_x;
 		float			icon_fullscreen_pos_y;
 		bool			icon_fullscreen_hover;
@@ -142,6 +148,7 @@ class ofApp : public ofBaseApp{
 		bool bShowControls;
 		bool bShowInfo;
 		bool bTopmost;
+		bool bMute;
 		bool bFullscreen;
 		bool bResizeWindow;
 		bool bPaused;
