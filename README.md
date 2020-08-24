@@ -3,7 +3,7 @@ An Openframeworks video player for Spout and NDI output
 
 SpoutVideoPlayer is a simple video player for Spout and NDI output. The output can be received into any Spout enabled application and by applications supporting the Newtek NDI protocol for sharing data over a network.
 
-##The project depends on :
+### The project depends on :
 
 ofxWinMenu - https://github.com/leadedge/ofxWinMenu
 ofxNDI - https://github.com/leadedge/ofxNDI
@@ -15,28 +15,27 @@ NDI - http://NDI.NewTek.com/
 
 Refer to the ofxNDI addon for further information concerning NDI.
 
-##How to use :
-SPACE or 
-Mouse control :  
-  RH click the central part of the window to show / hide controls   
-  RH click volume - mute  
-  LH click volume - adjust  
-   <	back one frame if paused  
-   >	forward one frame if paused  
-  <<	back 8 frames if paused  
-  >>	forward 8 frames if paused  
-  
-Keyboard :  
-  SPACE	show / hide controls  
-  'h'	show / hide information  
-  'p'	play / pause  
-  'm'	toggle mute  
-  LEFT/RIGHT	back/forward one frame  
-  PGUP/PGDN	back/forward 8 frames  
-  HOME/END	start/end of video  
-  'f'	toggle full screen  
-  'ESC'	exit full screen  
+### How to use :
 
+Mouse control :\
+RH click the central part of the window to show / hide controls\
+RH click volume - mute\
+LH click volume - adjust\
+< back one frame if paused\
+> forward one frame if paused\
+<< back 8 frames if paused\
+>> forward 8 frames if paused\
+\
+Keyboard :\
+  SPACE	show / hide controls\
+  'h'	show / hide information\
+  'p'	play / pause\
+  'm'	toggle mute\
+  LEFT/RIGHT	back/forward one frame\
+  PGUP/PGDN	back/forward 8 frames\
+  HOME/END	start/end of video\
+  'f'	toggle full screen\
+  'ESC'	exit full screen
 
 ----------------------
 Credit for the icons and progress bar - https://github.com/ACMILabs/mini-vod
