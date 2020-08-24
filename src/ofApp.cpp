@@ -2,6 +2,8 @@
 
 	Spout Video Player
 
+	A simple video player with Spout and NDI output
+
 	Copyright (C) 2017-2020 Lynn Jarvis.
 
 	=========================================================================
@@ -34,6 +36,11 @@
 				  (Basic pack without player)
 	22.08.20	- Add audio mute
 				  Change progress bar position if no info
+	24.08.20	- Add volume slider control
+				- Fix window sizing
+				- Allow for multiple monitors full screen
+				- Update to 2.007 SpoutLibrary - no code changes
+				  Version 1.002
 
 */
 #include "ofApp.h"
@@ -51,6 +58,14 @@ static PSTR szResolutionX;
 static PSTR szResolutionY;
 static bool busemovie;
 
+// volume control modal dialog
+LRESULT CALLBACK UserVolume(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
+static HWND hwndVolume = NULL;
+// ofApp class pointer for the dialog to access class variables
+static ofApp * pThis = NULL;
+// Hook for volume dialog keyboard detection
+HHOOK hHook = NULL;
+LRESULT CALLBACK KeyProc(int nCode, WPARAM wParam, LPARAM lParam);
 
 //--------------------------------------------------------------
 void ofApp::setup(){
@@ -65,9 +80,11 @@ void ofApp::setup(){
 	DWORD dummy, dwSize;
 	char temp[MAX_PATH];
 
-	
+
 	/*
 	// Debug console window so printf works
+	// Note use of WinMain in main.cpp and 
+	// Linker > System > Subsystem setting
 	FILE* pCout;
 	AllocConsole();
 	freopen_s(&pCout, "CONOUT$", "w", stdout);
@@ -94,8 +111,11 @@ void ofApp::setup(){
 	// Load a font rather than the default
 	myFont.load("fonts/verdana.ttf", 12, true, true);
 
-	// Window handle used for topmost function
+	// Main window handle
 	hWnd = WindowFromDC(wglGetCurrentDC());
+
+	// ofApp class pointer for dialogs to use
+	pThis = this;
 
 	// Set a custom window icon
 	SetClassLong(hWnd, GCL_HICON, (LONG)LoadIconA(GetModuleHandle(NULL), MAKEINTRESOURCEA(IDI_SPOUTICON)));
@@ -135,7 +155,7 @@ void ofApp::setup(){
 	// View popup menu
 	//
 	hPopup = menu->AddPopupMenu(hMenu, "View");
-	bShowControls = false;  // screen info display on
+	bShowControls = false;  // don't show controls yet
 	menu->AddPopupItem(hPopup, "Controls");
 	bLoop = false;  // movie loop
 	menu->AddPopupItem(hPopup, "Loop");
@@ -149,8 +169,7 @@ void ofApp::setup(){
 	menu->AddPopupItem(hPopup, "Full screen", false, false); // Not checked and not auto-check
 	bTopmost = false; // app is not topmost yet
 	menu->AddPopupItem(hPopup, "Show on top"); // Not checked (default)
-
-
+	
 	//
 	// Output popup menu
 	//
@@ -168,38 +187,46 @@ void ofApp::setup(){
 	menu->AddPopupItem(hPopup, "Information", false, false); // No auto check
 	menu->AddPopupItem(hPopup, "About", false, false); // No auto check
 
-	// Set the menu to the window
+	// Adjust window for the starting client size (in main.cpp)
+	// allowing for a menu and centre on the screen
+	ResetWindow(true);
+
+	// Set the menu to the window after adjusting the size
 	menu->SetWindowMenu();
-
-	// Get the starting window size
-	windowWidth = 640;
-	windowHeight = 360;
-	// Set window shape allowing for the menu
-	ofSetWindowShape(windowWidth, windowHeight + (float)GetSystemMetrics(SM_CYMENU));
-
-	// Centre on the screen
-	ofSetWindowPosition((ofGetScreenWidth() - windowWidth) / 2, (ofGetScreenHeight() - windowHeight) / 2);
 
 	bMenuExit = false; // to handle mouse position
 	bMessageBox = false; // To handle messagebox and mouse events
 	bMouseClicked = false;
 	bMouseExited = false;
 
-	strcat_s(info, 1024, "SPACE	show / hide controls\n");
-	strcat_s(info, 1024, "   | |	play / pause\n");
+	// Text for Help > Information
+	strcat_s(info, 1024, "\nMouse\n");
+	strcat_s(info, 1024, "  RH click window	show / hide controls\n");
+	strcat_s(info, 1024, "  RH click volume	mute\n");
+	strcat_s(info, 1024, "  LH click volume	adjust\n");
 	strcat_s(info, 1024, "   <	back one frame if paused\n");
 	strcat_s(info, 1024, "   >	forward one frame if paused\n");
 	strcat_s(info, 1024, "  <<	back 8 frames if paused\n");
 	strcat_s(info, 1024, "  >>	forward 8 frames if paused\n");
+	strcat_s(info, 1024, "\nKeyboard\n");
+	strcat_s(info, 1024, "  SPACE	show / hide controls\n");
+	strcat_s(info, 1024, "  'h'	show / hide information\n");
+	strcat_s(info, 1024, "  'p'	play / pause\n");
+	strcat_s(info, 1024, "  'm'	toggle mute\n");
+	strcat_s(info, 1024, "  LEFT/RIGHT	back/forward one frame\n");
+	strcat_s(info, 1024, "  PGUP/PGDN	back/forward 8 frames\n");
+	strcat_s(info, 1024, "  HOME/END	start/end of video\n");
+	strcat_s(info, 1024, "  'f'	toggle full screen\n");
+	strcat_s(info, 1024, "  'ESC'	exit full screen\n");
 
 	bUseMovieResolution = true; //  false; // Use movie size for sender resolution
 	bSplash = true; // set false for movie load testing
 
 	// starting resolution
-	ResolutionWidth  = (unsigned int)ofGetWidth(); //  (unsigned int)windowWidth;
-	ResolutionHeight = (unsigned int)ofGetHeight(); //  (unsigned int)windowHeight;
+	ResolutionWidth  = (unsigned int)ofGetWidth();
+	ResolutionHeight = (unsigned int)ofGetHeight();
 
-	// Load splash screen 1200 x 650
+	// Load splash screen
 	if(bSplash) {
 		splashImage.load("images/SpoutVideoPlayer.png");
 		splashImage.setImageType(OF_IMAGE_COLOR_ALPHA);
@@ -282,9 +309,13 @@ void ofApp::setup(){
 	string NDIversion = NDIsender.GetNDIversion();
 	NDInumber = NDIversion.substr(NDIversion.length() - 7, 7);
 
-	// For received frame fps calculations - independent of the rendering rate
-	startTime = lastTime = frameTime = 0;
-	fps = frameRate = 30; // starting value
+	// For movie frame fps calculations
+	// independent of the rendering rate
+	startTime = lastTime = frameTime = 0.0;
+	fps = frameRate = 30.0; // starting value
+
+	// Keyboard hook for volume dialog
+	hHook = SetWindowsHookExA(WH_KEYBOARD, KeyProc, NULL, GetCurrentThreadId());
 
 }
 
@@ -382,11 +413,11 @@ void ofApp::draw() {
 			// Create a Spout sender the same size as the fbo resolution
 			// sendername initialized by movie load
 			bInitialized = spoutsender->CreateSender(sendername, (unsigned int)myFbo.getWidth(), (unsigned int)myFbo.getHeight());
-			fps = frameRate = 30;
 		}
 
-		if (bInitialized) {
-			// Send the video texture out for all receivers to use
+		if (bInitialized && myMovie.isFrameNew()) {
+			// Send the video texture out.
+			// Receivers will detect the movie frame rate
 			spoutsender->SendTexture(myFbo.getTexture().getTextureData().textureID,
 				myFbo.getTexture().getTextureData().textureTarget,
 				myFbo.getWidth(), myFbo.getHeight(), false);
@@ -404,11 +435,9 @@ void ofApp::draw() {
 				ndiBuffer[0].allocate(ResolutionWidth, ResolutionHeight, 4);
 				ndiBuffer[1].allocate(ResolutionWidth, ResolutionHeight, 4);
 				idx = 0;
-				// Reset the starting values for frame rate calulations
-				fps = frameRate = 30;
 			}
 		}
-		else {
+		if (bNDIinitialized && myMovie.isFrameNew()) {
 			myFbo.bind();
 			glReadPixels(0, 0, ResolutionWidth, ResolutionHeight, GL_RGBA, GL_UNSIGNED_BYTE, ndiBuffer[0].getData());
 			myFbo.unbind();
@@ -606,9 +635,9 @@ void ofApp::drawPlayBar()
 		} // endif show controls
 	} // endif no splash image
 
-	// Show keyboard duplicates of menu functions if not full screen
+	// Show keyboard shortcuts if not full screen
 	if (!bFullscreen && bShowInfo) {
-		sprintf_s(str, 256, "'  ' show controls : 'h' show info : 'p' pause : 'm' mute : 'f' fullscreen");
+		sprintf_s(str, 256, "'  ' show controls : 'h' hide info : 'p' pause : 'm' mute : 'f' fullscreen");
 		myFont.drawString(str, (ofGetWidth() - myFont.stringWidth(str)) / 2, (ofGetHeight() - 3));
 		ofSetColor(255);
 	}
@@ -619,8 +648,10 @@ void ofApp::drawPlayBar()
 void ofApp::windowResized(int w, int h) {
 
 	if (!bResizeWindow) {
-		windowWidth = ofGetWidth();
-		windowHeight = ofGetHeight() + (float)GetSystemMetrics(SM_CYMENU);
+		RECT rect;
+		GetWindowRect(hWnd, &rect);
+		windowWidth = (float)(rect.right - rect.left);
+		windowHeight = (float)(rect.bottom - rect.top);
 	}
 }
 
@@ -642,6 +673,9 @@ void ofApp::dragEvent(ofDragInfo dragInfo) {
 
 //--------------------------------------------------------------
 void ofApp::keyPressed(int key) {
+
+	// Close volume dialog
+	CloseVolume(); 
 
 	// Escape key exit has been disabled but it can still be checked here
 	if (key == VK_ESCAPE) {
@@ -669,18 +703,7 @@ void ofApp::keyPressed(int key) {
 		// If there is no menu when you call the SetPopupItem function it will crash
 	}
 
-	if (key == 'p' || key == 'P') {
-		if(bLoaded) {
-			bPaused = !bPaused;
-			if (bPaused)
-				myMovie.setPaused(true);
-			else
-				myMovie.play();
-		}
-	}
-
 	if (key == 'l' || key == 'L') {
-
 		if (bLoaded) {
 			bLoop = !bLoop;
 			menu->SetPopupItem("Loop", bLoop);
@@ -690,10 +713,10 @@ void ofApp::keyPressed(int key) {
 	if (key == 'm' || key == 'm') {
 		if (bLoaded) {
 			bMute = !bMute;
-			if (bMute)
+			if(bMute)
 				myMovie.setVolume(0.0f);
 			else
-				myMovie.setVolume(1.0f);
+				myMovie.setVolume(movieVolume);
 			menu->SetPopupItem("Mute", bMute);
 		}
 	}
@@ -710,6 +733,12 @@ void ofApp::keyPressed(int key) {
 		menu->SetPopupItem("Info", bShowInfo);
 	}
 
+	if (key == 'p') {
+		bPaused = !bPaused;
+		if(bLoaded) 
+			myMovie.setPaused(bPaused);
+	}
+
 	// Go to the start of the movie
 	if (key == OF_KEY_HOME) {
 		if (bLoaded) {
@@ -724,33 +753,46 @@ void ofApp::keyPressed(int key) {
 		if (bLoaded) {
 			myMovie.setPosition(myMovie.getDuration());
 			if (!bPaused) {
-				myMovie.setPaused(true);
 				bPaused = true;
+				myMovie.setPaused(bPaused);
 			}
 		}
 	}
 
-	// Forward/back if paused
+	// Hits an icon whether show info or not
+	float y = (float)ofGetHeight()-icon_size;
+
+	// Back one frame if paused
 	if (key == OF_KEY_LEFT)
-		HandleControlButtons(65, 668);
+		HandleControlButtons(66.0f, y);
 
+	// Forward one frame if paused
 	if (key == OF_KEY_RIGHT)
-		HandleControlButtons(147, 668);
+		HandleControlButtons(148.0f, y);
 
-	// Fast forward / speed up
+	// Back 8 frames
 	if (key == OF_KEY_PAGE_UP)
-		HandleControlButtons(188, 668);
+		HandleControlButtons(28.0f, y);
 
-	// Fast back / slow down
+	// Forward 8 frames
 	if (key == OF_KEY_PAGE_DOWN)
-		HandleControlButtons(24, 668);
+		HandleControlButtons(188.0f, y);
 
 }
 
 
 //--------------------------------------------------------------
 void ofApp::mousePressed(int x, int y, int button) {
-	HandleControlButtons((float)x, (float)y);
+
+	// RH click in window area to show/hide controls
+	if (button == 2 && bLoaded && y < (ofGetHeight() - (int)(icon_size*2.0))) {
+		bShowControls = !bShowControls;
+		CloseVolume();
+		drawPlayBar();
+	}
+
+	HandleControlButtons((float)x, (float)y, button);
+
 }
 
 //--------------------------------------------------------------
@@ -842,10 +884,14 @@ void ofApp::exit() {
 	strcat_s(initfile, MAX_PATH, "\\SpoutVideoPlayer.ini");
 	WriteInitFile(initfile);
 
+	// Remove dialog keyboard hook
+	if(hHook)
+		UnhookWindowsHookEx(hHook);
+
 }
 
 //--------------------------------------------------------------
-void ofApp::HandleControlButtons(float x, float y) {
+void ofApp::HandleControlButtons(float x, float y, int button) {
 
 	// handle clicking on progress bar (trackbar)
 	bool bPaused = false;
@@ -929,8 +975,8 @@ void ofApp::HandleControlButtons(float x, float y) {
 		// Skip forward if paused
 		int frame = myMovie.getCurrentFrame();
 		if (frame < myMovie.getTotalNumFrames() - 8) {
-			// Not sure why but nextframe after set frame is needed
-			// or nextrame is one to few
+			// Not sure why, but nextFrame() is needed
+			// after setFrame() or next frame is one to few
 			myMovie.setFrame(frame + 7);
 			myMovie.nextFrame();
 			frame = myMovie.getCurrentFrame();
@@ -956,11 +1002,21 @@ void ofApp::HandleControlButtons(float x, float y) {
 		x <= (icon_sound_pos_x + icon_size) &&
 		y >= (icon_sound_pos_y) &&
 		y <= (icon_sound_pos_y + icon_size)) {
-		bMute = !bMute;
-		if (bMute)
-			myMovie.setVolume(0.0f);
-		else
-			myMovie.setVolume(1.0f);
+		// LH click to open/close for volume slider
+		if (button == 0) {
+			if (hwndVolume)
+				CloseVolume();
+			else
+				hwndVolume = CreateDialogA(g_hInstance, MAKEINTRESOURCEA(IDD_OPTIONSBOX), hWnd, (DLGPROC)UserVolume);
+		}
+		else if (button == 2) {
+			// RH click to mute
+			bMute = !bMute;
+			if (bMute)
+				myMovie.setVolume(0.0f);
+			else
+				myMovie.setVolume(movieVolume);
+		}
 	}
 
 }
@@ -976,24 +1032,16 @@ void ofApp::setVideoPlaypause() {
 	if (bPaused)
 		bShowControls = true;
 
-	if(bLoaded) {
-		if (bPaused) {
-			myMovie.setPaused(true);
-		}
-		else {
-			myMovie.setPaused(false);
-			myMovie.play();
-		}
-	}
+	if(bLoaded)
+		myMovie.setPaused(bPaused);
 
 }
 
 //--------------------------------------------------------------
 bool ofApp::OpenMovieFile(string filePath) {
 
-	bLoaded = false;
-	unsigned int width = 0;
-	unsigned int height = 0;
+	// Close volume dialog
+	CloseVolume();
 
 	// Stop if playing
 	if (bLoaded) {
@@ -1009,6 +1057,9 @@ bool ofApp::OpenMovieFile(string filePath) {
 		nOldFrames = 0;
 		nNewFrames = 0;
 
+		// fps is calculated when playing
+		fps = frameRate = 30.0;
+
 		bPaused = false;
 		myMovie.setPosition(0.0f);
 
@@ -1016,9 +1067,11 @@ bool ofApp::OpenMovieFile(string filePath) {
 			myMovie.setLoopState(OF_LOOP_NORMAL);
 		else
 			myMovie.setLoopState(OF_LOOP_NONE);
-			
-		bPaused = false;
+
+		myMovie.setVolume(movieVolume);
+
 		myMovie.play();
+
 	}
 	else {
 		doMessageBox(NULL, "Could not load the file\nMake sure you have codecs installed on your system.\nOF recommends the free K - Lite Codec pack.", "SpoutVideoPlayer", MB_ICONERROR);
@@ -1032,17 +1085,16 @@ bool ofApp::OpenMovieFile(string filePath) {
 		movieFile = filePath;
 		bSplash = false;
 
-		width = myMovie.getWidth(); // TODO
-		height = myMovie.getHeight();
-		movieWidth = width;
-		movieHeight = height;
+		movieWidth  = myMovie.getWidth();
+		movieHeight = myMovie.getHeight();
 
 		if (bUseMovieResolution) {
 			ResolutionWidth  = movieWidth;
 			ResolutionHeight = movieHeight;
 		}
 
-		ResetWindow();
+		if(bResizeWindow)
+			ResetWindow(true);
 
 		// Re-allocate buffers
 		if(myFbo.isAllocated()) myFbo.clear();
@@ -1078,10 +1130,19 @@ bool ofApp::OpenMovieFile(string filePath) {
 
 
 //--------------------------------------------------------------
-void ofApp::ResetWindow()
+void ofApp::ResetWindow(bool bCentre)
 {
 	if (bSplash)
 		return;
+
+	// Close volume dialog
+	CloseVolume();
+
+	// Default desired client size
+	RECT rect;
+	GetClientRect(hWnd, &rect);
+	windowWidth = (float)(rect.right - rect.left);
+	windowHeight = (float)(rect.bottom - rect.top);
 
 	if (bResizeWindow) {
 
@@ -1096,13 +1157,39 @@ void ofApp::ResetWindow()
 			windowWidth = 1280;
 			windowHeight = windowWidth*movieHeight / movieWidth;
 		}
+	}
 
-		// Set window size
-		ofSetWindowShape(windowWidth, windowHeight + (float)GetSystemMetrics(SM_CYMENU));
+	// Restore topmost state
+	HWND hWndMode = HWND_TOP;
+	if (bTopmost)
+		hWndMode = HWND_TOPMOST;
 
-		// Centre on the screen
-		ofSetWindowPosition((ofGetScreenWidth() - windowWidth) / 2, (ofGetScreenHeight() - windowHeight) / 2);
+	// Adjust window to desired client size allowing for the menu
+	rect.left = 0;
+	rect.top = 0;
+	rect.right = windowWidth;
+	rect.bottom = windowHeight;
+	AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW | WS_BORDER, true);
 
+	// Full window size
+	windowWidth  = (float)(rect.right - rect.left);
+	windowHeight = (float)(rect.bottom - rect.top);
+
+	// Get current position
+	GetWindowRect(hWnd, &rect);
+	
+	// Set size and optionally centre on the screen
+	if (bCentre) {
+		SetWindowPos(hWnd, hWndMode,
+			(ofGetScreenWidth() - windowWidth) / 2,
+			(ofGetScreenHeight() - windowHeight) / 2,
+			windowWidth, windowHeight, SWP_SHOWWINDOW);
+	}
+	else {
+		SetWindowPos(hWnd, hWndMode,
+			rect.left,
+			rect.top,
+			windowWidth, windowHeight, SWP_SHOWWINDOW);
 	}
 
 }
@@ -1146,7 +1233,6 @@ void ofApp::appMenuFunction(string title, bool bChecked) {
 						myMovie.setLoopState(OF_LOOP_NORMAL);
 					else
 						myMovie.setLoopState(OF_LOOP_NONE);
-
 					myMovie.play();
 					bPaused = false;
 				}
@@ -1185,7 +1271,7 @@ void ofApp::appMenuFunction(string title, bool bChecked) {
 			if (bMute)
 				myMovie.setVolume(0.0f);
 			else
-				myMovie.setVolume(1.0f);
+				myMovie.setVolume(movieVolume);
 		}
 	}
 
@@ -1195,6 +1281,7 @@ void ofApp::appMenuFunction(string title, bool bChecked) {
 			doMessageBox(NULL, "No video loaded", "SpoutVideoPlayer", MB_ICONERROR);
 			return;
 		}
+		CloseVolume();
 		bShowControls = !bShowControls;  // Flag is used elsewhere in Draw
 		menu->SetPopupItem("Controls", bShowControls);
 	}
@@ -1232,7 +1319,9 @@ void ofApp::appMenuFunction(string title, bool bChecked) {
 
 	if (title == "Resize to movie") {
 		bResizeWindow = !bResizeWindow;
-		ResetWindow();
+		// Adjust window and centre on the screen
+		if(bResizeWindow)
+			ResetWindow(true);
 		menu->SetPopupItem("Resize to movie", bResizeWindow);
 	}
 
@@ -1262,6 +1351,7 @@ void ofApp::appMenuFunction(string title, bool bChecked) {
 	//
 	// Help menu
 	//
+
 	if (title == "About") {
 		// Keep the movie in sync while the menu stops drawing
 		if (bLoaded) myMovie.setPaused(true);
@@ -1272,7 +1362,6 @@ void ofApp::appMenuFunction(string title, bool bChecked) {
 	if (title == "Information") {
 		doMessageBox(NULL, info, "Information", MB_OK);
 	}
-	
 
 } // end appMenuFunction
 
@@ -1283,6 +1372,9 @@ void ofApp::doFullScreen(bool bFullscreen)
 	RECT rectTaskBar;
 	HWND hWndTaskBar;
 	HWND hWndMode;
+
+	// Close volume dialog
+	CloseVolume();
 
 	if (bFullscreen) {
 
@@ -1319,9 +1411,25 @@ void ofApp::doFullScreen(bool bFullscreen)
 
 		// Hide the System Task Bar
 		SetWindowPos(hWndTaskBar, HWND_NOTOPMOST, 0, 0, (rectTaskBar.right - rectTaskBar.left), (rectTaskBar.bottom - rectTaskBar.top), SWP_NOMOVE | SWP_NOSIZE);
-		SetWindowPos(g_hwnd, HWND_NOTOPMOST, 0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN), SWP_SHOWWINDOW);
-		SetWindowPos(g_hwnd, HWND_TOP, 0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN), SWP_SHOWWINDOW);
+		
+		// Allow for multiple monitors
+		HMONITOR monitor = MonitorFromWindow(g_hwnd, MONITOR_DEFAULTTOPRIMARY);
+		MONITORINFO mi;
+		mi.cbSize = sizeof(mi);
+		GetMonitorInfoA(monitor, &mi);
+		int x = (int)mi.rcMonitor.left;
+		int y = (int)mi.rcMonitor.top;
+		int w = (int)(mi.rcMonitor.right - mi.rcMonitor.left); // rcMonitor dimensions are LONG
+		int h = (int)(mi.rcMonitor.bottom - mi.rcMonitor.top);
+		// Setting HWND_TOPMOST causes a grey screen for Windows 10
+		// if scaling is set larger than 100%. This seems to fix it.
+		// Topmost is restored when returning from full screen.
+		SetWindowPos(g_hwnd, HWND_NOTOPMOST, x, y, w, h, SWP_HIDEWINDOW);
+		SetWindowPos(g_hwnd, HWND_TOP, x, y, w, h, SWP_SHOWWINDOW);
+		ShowCursor(FALSE);
 
+		SetFocus(g_hwnd);
+		
 	} // endif bFullscreen
 	else {
 
@@ -1354,7 +1462,6 @@ void ofApp::doFullScreen(bool bFullscreen)
 
 		// Show cursor for all modes
 		ofShowCursor();
-
 
 	} // endif not bFullscreen
 
@@ -1398,11 +1505,6 @@ void ofApp::WriteInitFile(const char *initfile)
 		WritePrivateProfileStringA((LPCSTR)"Options", (LPCSTR)"loop", (LPCSTR)"1", (LPCSTR)initfile);
 	else
 		WritePrivateProfileStringA((LPCSTR)"Options", (LPCSTR)"loop", (LPCSTR)"0", (LPCSTR)initfile);
-
-	if (bMute)
-		WritePrivateProfileStringA((LPCSTR)"Options", (LPCSTR)"mute", (LPCSTR)"1", (LPCSTR)initfile);
-	else
-		WritePrivateProfileStringA((LPCSTR)"Options", (LPCSTR)"mute", (LPCSTR)"0", (LPCSTR)initfile);
 
 	if (bResizeWindow)
 		WritePrivateProfileStringA((LPCSTR)"Options", (LPCSTR)"resize", (LPCSTR)"1", (LPCSTR)initfile);
@@ -1451,6 +1553,10 @@ void ofApp::WriteInitFile(const char *initfile)
 	}
 	WritePrivateProfileStringA((LPCSTR)"Resolution", (LPCSTR)"height", (LPCSTR)tmp, (LPCSTR)initfile);
 
+	// Volume
+	sprintf_s(tmp, 256, "%-8.2f", movieVolume); tmp[8] = 0;
+	WritePrivateProfileStringA((LPCSTR)"Audio", (LPCSTR)"volume", (LPCSTR)tmp, (LPCSTR)initfile);
+
 
 }
 
@@ -1469,9 +1575,6 @@ void ofApp::ReadInitFile()
 	//
 	GetPrivateProfileStringA((LPCSTR)"Options", (LPSTR)"loop", NULL, (LPSTR)tmp, 3, initfile);
 	if (tmp[0]) bLoop = (atoi(tmp) == 1);
-
-	GetPrivateProfileStringA((LPCSTR)"Options", (LPSTR)"mute", NULL, (LPSTR)tmp, 3, initfile);
-	if (tmp[0]) bMute = (atoi(tmp) == 1);
 
 	GetPrivateProfileStringA((LPCSTR)"Options", (LPSTR)"resize", NULL, (LPSTR)tmp, 3, initfile);
 	if (tmp[0]) bResizeWindow = (atoi(tmp) == 1);
@@ -1499,6 +1602,10 @@ void ofApp::ReadInitFile()
 
 	if (GetPrivateProfileStringA((LPCSTR)"Resolution", (LPSTR)"height", (LPSTR)"720", (LPSTR)tmp, 8, initfile) > 0)
 		ResolutionHeight = atoi(tmp);
+
+	// Volume
+	if (GetPrivateProfileStringA((LPCSTR)"Audio", (LPSTR)"volume", (LPSTR)"1.00", (LPSTR)tmp, 8, initfile) > 0)
+		movieVolume = atof(tmp);
 
 	// Set up menus etc - assume menu has been set
 	menu->SetPopupItem("Loop", bLoop);
@@ -1798,7 +1905,7 @@ LRESULT CALLBACK UserResolution(HWND hDlg, UINT message, WPARAM wParam, LPARAM l
 			break;
 
 		case IDCANCEL:
-			// User pressed cancel.  Just take down dialog box.
+			// User pressed cancel. Just take down dialog box.
 			EndDialog(hDlg, 0);
 			return TRUE;
 		default:
@@ -1810,3 +1917,81 @@ LRESULT CALLBACK UserResolution(HWND hDlg, UINT message, WPARAM wParam, LPARAM l
 	return FALSE;
 }
 
+// Message handler for Volume control dialog
+LRESULT CALLBACK UserVolume(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	UNREFERENCED_PARAMETER(lParam); // suppress warning
+
+	static HWND hBar, hBox, hFocus;
+	static int iPos, dn, TrackBarPos;
+	float fValue;
+
+	switch (message) {
+
+	case WM_INITDIALOG:
+		// Open the window to the left of the volume icon
+		int x, y, w, h;
+		RECT rect;
+		GetWindowRect(hDlg, &rect);
+		w = rect.right - rect.left;
+		h = rect.bottom - rect.top;
+		GetWindowRect(pThis->hWnd, &rect);
+		x = rect.right  - w - (int)pThis->icon_size * 3.5; // (int)(icon_sound_pos_x - icon_size * 1.5);
+		y = rect.bottom - h - (int)pThis->icon_size; // (int)icon_sound_pos_y;
+		if (!pThis->bShowInfo)
+			y += 14;
+		SetWindowPos(hDlg, HWND_TOPMOST, x,	y, w, h, SWP_ASYNCWINDOWPOS | SWP_SHOWWINDOW);
+
+		// Set the scroll bar limits and text
+		hBar = GetDlgItem(hDlg, IDC_TRACKBAR);
+		SendMessage(hBar, TBM_SETRANGEMIN, (WPARAM)1, (LPARAM)0);
+		SendMessage(hBar, TBM_SETRANGEMAX, (WPARAM)1, (LPARAM)100);
+		TrackBarPos = (int)(pThis->movieVolume * 100.0f);
+		SendMessage(hBar, TBM_SETPOS, (WPARAM)1, (LPARAM)TrackBarPos);
+
+		return TRUE;
+
+	// https://msdn.microsoft.com/en-us/library/windows/desktop/hh298416(v=vs.85).aspx
+	case WM_HSCROLL:
+		hBar = GetDlgItem(hDlg, IDC_TRACKBAR);
+		iPos = SendMessage(hBar, TBM_GETPOS, 0, 0);
+		if (iPos > 100)
+			SendMessage(hBar, TBM_SETPOS, (WPARAM)TRUE, (LPARAM)100);
+		else if (iPos < 0) SendMessage(hBar, TBM_SETPOS, (WPARAM)TRUE, (LPARAM)0);
+		TrackBarPos = iPos;
+		fValue = ((float)iPos) / 100.0f;
+		if (fValue < 0.0) fValue = 0.0f;
+		if (fValue > 1.0) fValue = 1.0f;
+		pThis->movieVolume = fValue;
+		pThis->myMovie.setVolume(fValue);
+		break;
+		
+	case WM_DESTROY:
+		DestroyWindow(hwndVolume);
+		hwndVolume = NULL;
+		break;
+	}
+
+	return FALSE;
+}
+
+LRESULT CALLBACK KeyProc(int nCode, WPARAM wParam, LPARAM lParam)
+{
+	if (nCode >= 0 && (KF_UP & HIWORD(lParam)) != 0)
+	{
+		// Remove volume control dialog for any key
+		if (hwndVolume) {
+			DestroyWindow(hwndVolume);
+			hwndVolume = NULL;
+		}
+	}
+	return CallNextHookEx(NULL, nCode, wParam, lParam);
+}
+
+void ofApp::CloseVolume()
+{
+	if (hwndVolume) {
+		DestroyWindow(hwndVolume);
+		hwndVolume = NULL;
+	}
+}

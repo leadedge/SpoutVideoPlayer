@@ -2,6 +2,9 @@
 
 	Spout Video Player
 
+	A simple video player with Spout and NDI output
+
+
 	Copyright (C) 2017 Lynn Jarvis.
 
 	This program is free software: you can redistribute it and/or modify
@@ -86,7 +89,6 @@ class ofApp : public ofBaseApp{
 		ofImage			icon_full_screen;
 		ofImage			icon_sound;
 		ofImage			icon_mute;
-
 		
 		// Things to display the icons
 		ofRectangle		icon_background;
@@ -136,9 +138,11 @@ class ofApp : public ofBaseApp{
 		bool bLoaded;
 		int nOldFrames;
 		int nNewFrames;
+		float movieVolume;
 		void setVideoPlaypause();
-		void HandleControlButtons(float x, float y);
+		void HandleControlButtons(float x, float y, int button = 0);
 		void drawPlayBar();
+		void CloseVolume();
 
 		// Menu
 		ofxWinMenu * menu; // Menu object
@@ -161,13 +165,13 @@ class ofApp : public ofBaseApp{
 		
 		void doFullScreen(bool bFull);
 		void doTopmost(bool bTop);
-		void ResetWindow();
+		void ResetWindow(bool bCentre = false);
 		void WriteInitFile(const char *initfile);
 		void ReadInitFile();
 
 		HWND         hWnd;            // Application window
 		HWND         hWndForeground;  // current foreground window
-		HWND         g_hwnd;          // global handle to the OpenGL render window
+		HWND         g_hwnd;          // global app winodw handlehandle to the OpenGL render window
 		RECT         windowRect;      // Render window rectangle
 		RECT         clientRect;      // Render window client rectangle
 		LONG_PTR     dwStyle;         // original window style

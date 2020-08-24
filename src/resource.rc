@@ -29,8 +29,18 @@ FONT 8, "Ms Shell Dlg"
 }
 
 //
-// Options
+// Volume control
 //
+LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
+IDD_OPTIONSBOX DIALOG 0, 0, 116, 14
+STYLE DS_3DLOOK | DS_CENTERMOUSE | DS_SHELLFONT | WS_VISIBLE | WS_POPUP
+FONT 8, "Ms Shell Dlg"
+{
+	CONTROL         "", IDC_TRACKBAR, TRACKBAR_CLASS, WS_TABSTOP | TBS_BOTH | TBS_NOTICKS, 8, 2, 100, 10, WS_EX_LEFT
+}
+
+/*
+// Options dialog template - might be used later
 LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
 IDD_OPTIONSBOX DIALOG 0, 0, 186, 103
 STYLE DS_3DLOOK | DS_CENTER | DS_MODALFRAME | DS_SHELLFONT | WS_CAPTION | WS_VISIBLE | WS_POPUP | WS_SYSMENU
@@ -44,6 +54,7 @@ FONT 8, "Ms Shell Dlg"
     DEFPUSHBUTTON   "OK", IDOK, 46, 72, 36, 14, 0, WS_EX_LEFT
     PUSHBUTTON      "Cancel", IDCANCEL, 98, 72, 36, 14, 0, WS_EX_LEFT
 }
+*/
 
 //
 // Resolution
@@ -77,8 +88,8 @@ IDI_SPOUTICON      ICON           "spout.ico"
 //
 LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 VS_VERSION_INFO VERSIONINFO
-    FILEVERSION     1,0,0,1
-    PRODUCTVERSION  1,0,0,1
+    FILEVERSION     1,0,0,2
+    PRODUCTVERSION  1,0,0,2
     FILEOS          VOS_NT
     FILETYPE        VFT_APP
     FILESUBTYPE     VFT2_UNKNOWN
@@ -91,12 +102,12 @@ VS_VERSION_INFO VERSIONINFO
         {
             VALUE "CompanyName", "Leading Edge Pty. Ltd.\0"
             VALUE "FileDescription", "Spout Video Player\0"
-            VALUE "FileVersion", "1.001\0"
+            VALUE "FileVersion", "1.002\0"
             VALUE "InternalName", "Spout  Video Player\0"
-            VALUE "LegalCopyright", "Copyright \251 2017 Leading Edge Pty. Ltd.\0"
+            VALUE "LegalCopyright", "Copyright \251 2020 Leading Edge Pty. Ltd.\0"
             VALUE "OriginalFilename", "Spout Video Player.exe\0"
             VALUE "ProductName", "Spout Video Player\0"
-            VALUE "ProductVersion", "1.001\0"
+            VALUE "ProductVersion", "1.002\0"
         }
     }
     BLOCK "VarFileInfo"
