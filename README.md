@@ -18,24 +18,24 @@ Refer to the ofxNDI addon for further information concerning NDI.
 ### How to use :
 
 Mouse control :\
-RH click the central part of the window to show / hide controls\
-RH click volume - mute\
-LH click volume - adjust\
-< back one frame if paused\
-> forward one frame if paused\
-<< back 8 frames if paused\
->> forward 8 frames if paused\
+&nbsp;&nbsp;RH click central part of window - show / hide controls\
+&nbsp;&nbsp;RH click volume - mute\
+&nbsp;&nbsp;LH click volume - adjust\
+&nbsp;&nbsp;"<" - back one frame if paused\
+&nbsp;&nbsp;">" - forward one frame if paused\
+&nbsp;&nbsp;"<<" - back 8 frames if paused\
+&nbsp;&nbsp;">>" - forward 8 frames if paused\
 \
 Keyboard :\
-  SPACE	show / hide controls\
-  'h'	show / hide information\
-  'p'	play / pause\
-  'm'	toggle mute\
-  LEFT/RIGHT	back/forward one frame\
-  PGUP/PGDN	back/forward 8 frames\
-  HOME/END	start/end of video\
-  'f'	toggle full screen\
-  'ESC'	exit full screen
+&nbsp;&nbsp;SPACE	show / hide controls\
+&nbsp;&nbsp;'h'	- show / hide information\
+&nbsp;&nbsp;'p'	- play / pause\
+&nbsp;&nbsp;'m'	- toggle mute\
+&nbsp;&nbsp;LEFT/RIGHT - back/forward one frame\
+&nbsp;&nbsp;PGUP/PGDN -	back/forward 8 frames\
+&nbsp;&nbsp;HOME/END - start/end of video\
+&nbsp;&nbsp;'f' - toggle full screen\
+&nbsp;&nbsp;'ESC' - exit full screen
 
 ----------------------
 Credit for the icons and progress bar - https://github.com/ACMILabs/mini-vod
