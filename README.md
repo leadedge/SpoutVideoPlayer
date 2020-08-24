@@ -21,8 +21,8 @@ Mouse control :\
 &nbsp;&nbsp;&nbsp;&nbsp;RH click central part of window - show / hide controls\
 &nbsp;&nbsp;&nbsp;&nbsp;RH click volume - mute\
 &nbsp;&nbsp;&nbsp;&nbsp;LH click volume - adjust\
-&nbsp;&nbsp;&nbsp;&nbsp;"<"&nbsp; - back one frame if paused\
-&nbsp;&nbsp;&nbsp;&nbsp;">"&nbsp; - forward one frame if paused\
+&nbsp;&nbsp;&nbsp;&nbsp;"<"&nbsp;&nbsp; - back one frame if paused\
+&nbsp;&nbsp;&nbsp;&nbsp;">"&nbsp;&nbsp; - forward one frame if paused\
 &nbsp;&nbsp;&nbsp;&nbsp;"<<" - back 8 frames if paused\
 &nbsp;&nbsp;&nbsp;&nbsp;">>" - forward 8 frames if paused\
 \
