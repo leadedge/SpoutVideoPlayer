@@ -2,9 +2,9 @@
 
 	Spout Video Player
 
-	A simple video player with Spout and NDI output
+	A simple video player
 
-	Copyright (C) 2017-2020 Lynn Jarvis.
+	Copyright (C) 2017-2021 Lynn Jarvis.
 
 	=========================================================================
 	This program is free software: you can redistribute it and/or modify
@@ -41,6 +41,12 @@
 				- Allow for multiple monitors full screen
 				- Update to 2.007 SpoutLibrary - no code changes
 				  Version 1.002
+				- Update to revised 2.007 SpoutLibrary
+				- Change default size from 640x360 to 800x450
+				  Version 1.003
+	13.01.21	- Update SpoutLibrary
+				  Version 1.004
+
 
 */
 #include "ofApp.h"
@@ -81,10 +87,10 @@ void ofApp::setup(){
 	char temp[MAX_PATH];
 
 
-	/*
 	// Debug console window so printf works
 	// Note use of WinMain in main.cpp and 
 	// Linker > System > Subsystem setting
+	/*
 	FILE* pCout;
 	AllocConsole();
 	freopen_s(&pCout, "CONOUT$", "w", stdout);

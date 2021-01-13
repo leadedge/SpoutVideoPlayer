@@ -4,8 +4,7 @@
 
 	A simple video player with Spout and NDI output
 
-
-	Copyright (C) 2017 Lynn Jarvis.
+	Copyright (C) 2017-2020 Lynn Jarvis.
 
 	This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Lesser General Public License as published by

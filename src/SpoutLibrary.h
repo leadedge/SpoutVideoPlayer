@@ -4,7 +4,7 @@
 //	Spout SDK dll compatible with any C++ compiler
 //
 /*
-		Copyright (c) 2016-2020, Lynn Jarvis. All rights reserved.
+		Copyright (c) 2016-2021, Lynn Jarvis. All rights reserved.
 
 		Redistribution and use in source and binary forms, with or without modification, 
 		are permitted provided that the following conditions are met:
@@ -65,90 +65,75 @@ enum LogLevel {
 // Any C++ compiler can use it.
 // Instances are obtained via factory function.
 //
+
 struct SPOUTLIBRARY
 {
-
-	// -----------------------------------------
-	// 2.007
-	//
-
 	//
 	// Sender
 	//
 
-
-	// Set name for sender creation
-	//   If no name is specified, the executable name is used.  
 	virtual void SetSenderName(const char* sendername = nullptr) = 0;
+	// Set the sender DX11 shared texture format
+	virtual void SetSenderFormat(DWORD dwFormat) = 0;
 	// Close sender and free resources
+	//   A sender is created or updated by all sending functions
 	virtual void ReleaseSender(DWORD dwMsec = 0) = 0;
-	// Send OpenGL texture.
-	//   A sender is created or updated based on the size and name
-	//   that has been set (see SetSenderName and CreateSender)
-	virtual bool SendTexture(GLuint TextureID, GLuint TextureTarget, unsigned int width, unsigned int height, bool bInvert = true, GLuint HostFBO = 0) = 0;
 	// Send texture attached to fbo.
 	//   The fbo must be currently bound.  
 	//   The sending texture can be larger than the size that the sender is set up for.  
 	//   For example, if the application is using only a portion of the allocated texture space,  
-	//   such as for Freeframe plugins. The 2.006 equivalent is DrawToSharedTexture.
-	//   that has been set (see SetSenderName and CreateSender)
+	//   such as for Freeframe plugins. (The 2.006 equivalent is DrawToSharedTexture).
 	virtual bool SendFbo(GLuint FboID, unsigned int width, unsigned int height, bool bInvert = true) = 0;
-	// Send image pixels.
-	//   A sender is created or updated based on the size and name
-	//   that has been set (see SetSenderName and CreateSender)
+	// Send OpenGL texture
+	virtual bool SendTexture(GLuint TextureID, GLuint TextureTarget, unsigned int width, unsigned int height, bool bInvert = true, GLuint HostFBO = 0) = 0;
+	// Send image pixels
 	virtual bool SendImage(const unsigned char* pixels, unsigned int width, unsigned int height, GLenum glFormat = GL_RGBA, bool bInvert = false) = 0;
-	// Get sender name
+	// Sender name
 	virtual const char * GetName() = 0;
-	// Get sender width
+	// Sender width
 	virtual unsigned int GetWidth() = 0;
-	// Get sender height
+	// Sender height
 	virtual unsigned int GetHeight() = 0;
-	// Get sender frame number
-	virtual long GetFrame() = 0;
-	// Get sender frame rate
+	// Sender frame rate
 	virtual double GetFps() = 0;
-	// Sender frame rate control.
-	//   Can be used to control the frame rate if no other means is available.
-	virtual void HoldFps(int fps) = 0;
+	// Sender frame number
+	virtual long GetFrame() = 0;
+	// Sender share handle
+	virtual HANDLE GetHandle() = 0;
 
 	//
 	// Receiver
 	//
 
-	// Specify sender for connection.
-	//   The application will not connect to any other  unless the user selects one.
-	//   If that sender closes, the application will wait for the nominated sender to open. 
-	//   If no name is specified, the receiver will connect to the active sender.
+	// Specify sender for connection
+	//   The application will not connect to any other  unless the user selects one
+	//   If that sender closes, the application will wait for the nominated sender to open 
+	//   If no name is specified, the receiver will connect to the active sender
 	virtual void SetReceiverName(const char* SenderName) = 0;
-	// Release receiver.
-	//   Close connection and release resources  
-	//   ready to connect to another sender.
+	// Close receiver and release resources ready to connect to another sender
 	virtual void ReleaseReceiver() = 0;
-	// Receive shared texture or OpenGL texture
-	//   If no arguments are passed :
-	//     Connect to a sender and retrieve shared texture details ready for access
-	//	   (see BindSharedTexture and UnBindSharedTexture).
-	//   For a valid texture :
-	// 	   Connect to a sender and inform the application to update the
-	//     receiving texture if it has changed dimensions.
-	//     For no change, copy the sender shared texture to the application texture
+	// Receive texture
+	//   If no arguments, connect to a sender and retrieve texture details ready for access
+	//	 (see BindSharedTexture and UnBindSharedTexture)
+	// 	 Connect to a sender and inform the application to update
+	//   the receiving texture if it has changed dimensions
+	//   For no change, copy the sender shared texture to the application texture
 	virtual bool ReceiveTexture(GLuint TextureID = 0, GLuint TextureTarget = 0, bool bInvert = false, GLuint HostFbo = 0) = 0;
-	// Receive image pixels.
-	// 	   Connect to a sender and inform the application to update the
-	//     receiving buffer if it has changed dimensions.
-	//     For no change, copy the sender shared texture to the pixel buffer.
+	// Receive image pixels
+	//   Connect to a sender and inform the application to update
+	//   the receiving buffer if it has changed dimensions
+	//   For no change, copy the sender shared texture to the pixel buffer
 	virtual bool ReceiveImage(unsigned char *pixels, GLenum glFormat = GL_RGBA, bool bInvert = false, GLuint HostFbo = 0) = 0;
-	// Query whether the sender has changed.
-	//   It is not necessary to monitor sender size changes.  
-	//   However, sender update must be checked at every cycle before 
-	//   receiving data. If this is not done, the receiving functions fail.
+	// Query whether the sender has changed
+	//   Checked at every cycle before receiving data
 	virtual bool IsUpdated() = 0;
-	// Query sender connection.
+	// Query sender connection
 	//   If the sender closes, receiving functions return false,  
-	//   but connection can be tested at any time.
 	virtual bool IsConnected() = 0;
-	// Open sender selection dialog (replaces SelectSenderPanel)
-	virtual void SelectSender() = 0;
+	// Query received frame status
+	//   The receiving texture or pixel buffer is only refreshed if the sender has produced a new frame  
+	//   This can be queried to process texture data only for new frames
+	virtual bool IsFrameNew() = 0;
 	// Get sender name
 	virtual const char * GetSenderName() = 0;
 	// Get sender width
@@ -157,34 +142,29 @@ struct SPOUTLIBRARY
 	virtual unsigned int GetSenderHeight() = 0;
 	// Get sender DirectX texture format
 	virtual DWORD GetSenderFormat() = 0;
-	// Get sender frame number
-	virtual long GetSenderFrame() = 0;
 	// Get sender frame rate
 	virtual double GetSenderFps() = 0;
-	// Query received frame status.
-	//   The receiving texture or pixel buffer is only refreshed
-	//   if the sender has produced a new frame.  
-	//   This can be queried if it is necessary to process
-	//   texture data only for new frames. 
-	virtual bool IsFrameNew() = 0;
+	// Get sender frame number
+	virtual long GetSenderFrame() = 0;
+	// Received sender share handle
+	virtual HANDLE GetSenderHandle() = 0;
+	// Received sender sharing mode
+	virtual bool GetSenderCPUmode() = 0;
+	// Open sender selection dialog
+	virtual void SelectSender() = 0;
 
 	//
-	// Common
+	// Frame count
 	//
 
-	// Disable frame counting for this application
+	// Enable or disable frame counting globally
+	virtual void SetFrameCount(bool bEnable) = 0;
+	// Disable frame counting specifically for this application
 	virtual void DisableFrameCount() = 0;
 	// Return frame count status
 	virtual bool IsFrameCountEnabled() = 0;
-
-	//
-	// DX9 support
-	//
-
-	// Set the DX9ex object and device from the application
-	virtual bool SetDX9device(IDirect3DDevice9Ex* pDevice) = 0;
-	// Write a DX9 surface to the spout sender shared texture
-	virtual bool WriteDX9surface(IDirect3DDevice9Ex* pDevice, LPDIRECT3DSURFACE9 surface) = 0;
+	// Sender frame rate control
+	virtual void HoldFps(int fps) = 0;
 
 	//
 	// Log utilities
@@ -212,77 +192,174 @@ struct SPOUTLIBRARY
 	// SPOUT_LOG_ERROR   - Something did go wrong
 	// SPOUT_LOG_FATAL   - Something bad happened
 	virtual void SetSpoutLogLevel(LogLevel level) = 0;
-	// Logs
+	// General purpose log
 	virtual void SpoutLog(const char* format, ...) = 0;
+	// Verbose - show log for SPOUT_LOG_VERBOSE or above
 	virtual void SpoutLogVerbose(const char* format, ...) = 0;
+	// Notice - show log for SPOUT_LOG_NOTICE or above
 	virtual void SpoutLogNotice(const char* format, ...) = 0;
+	// Warning - show log for SPOUT_LOG_WARNING or above
 	virtual void SpoutLogWarning(const char* format, ...) = 0;
+	// Error - show log for SPOUT_LOG_ERROR or above
 	virtual void SpoutLogError(const char* format, ...) = 0;
+	// Fatal - always show log
 	virtual void SpoutLogFatal(const char* format, ...) = 0;
-	// SpoutPanel Messagebox with optional timeout
+	// MessageBox dialog with optional timeout
+	//   Used where a Windows MessageBox would interfere with the application GUI
+	//   The dialog closes itself if a timeout is specified
 	virtual int SpoutMessageBox(const char * message, DWORD dwMilliseconds = 0) = 0;
-	// SpoutPanel Messagebox with standard arguments
+	// MessageBox dialog with standard arguments
+	//   Replaces an existing MessageBox call
 	virtual int SpoutMessageBox(HWND hwnd, LPCSTR message, LPCSTR caption, UINT uType, DWORD dwMilliseconds = 0) = 0;
 
 	//
 	// Registry utilities
 	//
+	// Read subkey DWORD value
 	virtual bool ReadDwordFromRegistry(HKEY hKey, const char *subkey, const char *valuename, DWORD *pValue) = 0;
+	// Write subkey DWORD value
 	virtual bool WriteDwordToRegistry(HKEY hKey, const char *subkey, const char *valuename, DWORD dwValue) = 0;
+	// Read subkey character string
 	virtual bool ReadPathFromRegistry(HKEY hKey, const char *subkey, const char *valuename, char *filepath) = 0;
+	// Write subkey character string
 	virtual bool WritePathToRegistry(HKEY hKey, const char *subkey, const char *valuename, const char *filepath) = 0;
+	// Remove subkey value name
 	virtual bool RemovePathFromRegistry(HKEY hKey, const char *subkey, const char *valuename) = 0;
+	// Delete a subkey and its values.
+	//   It must be a subkey of the key that hKey identifies, but it cannot have subkeys.  
+	//   Note that key names are not case sensitive.  
 	virtual bool RemoveSubKey(HKEY hKey, const char *subkey) = 0;
+	// Find subkey
 	virtual bool FindSubKey(HKEY hKey, const char *subkey) = 0;
 
 	// -----------------------------------------
 
-	//
-	// 2.006  compatibility
-	//
-
-	// Sender
-	virtual bool CreateSender(const char *Sendername, unsigned int width, unsigned int height, DWORD dwFormat = 0) = 0;
-	virtual bool UpdateSender(const char* Sendername, unsigned int width, unsigned int height) = 0;
-	// Receiver
-	virtual bool CreateReceiver(char* Sendername, unsigned int &width, unsigned int &height, bool bUseActive = false) = 0;
-	virtual bool CheckReceiver(char* Sendername, unsigned int &width, unsigned int &height, bool &bConnected) = 0;
-
+	// Initialization status
 	virtual bool IsInitialized() = 0;
+	// Bind OpenGL shared texture
 	virtual bool BindSharedTexture() = 0;
+	// Un-bind OpenGL shared texture
 	virtual bool UnBindSharedTexture() = 0;
+	// OpenGL shared texture ID
 	virtual GLuint GetSharedTextureID() = 0;
 
+	//
+	// Sender names
+	//
+
+	// Number of senders
 	virtual int  GetSenderCount() = 0;
+	// Sender item name
 	virtual bool GetSender(int index, char* sendername, int MaxSize = 256) = 0;
+	// Sender information
 	virtual bool GetSenderInfo(const char* sendername, unsigned int &width, unsigned int &height, HANDLE &dxShareHandle, DWORD &dwFormat) = 0;
+	// Current active sender
 	virtual bool GetActiveSender(char* Sendername) = 0;
+	// Set sender as active
 	virtual bool SetActiveSender(const char* Sendername) = 0;
 	
-	// Utilities
-	virtual bool SetDX9(bool bDX9 = true) = 0; // User request to use DirectX 9 (default is DirectX 11)
-	virtual bool GetDX9() = 0; // Return the flag that has been set
-	virtual bool SetMemoryShareMode(bool bMem = true) = 0;
-	virtual bool GetMemoryShareMode() = 0;
-	virtual void SetBufferMode(bool bActive) = 0;
+	//
+	// Get user registry settings recorded by "SpoutSettings"
+	// Set them either to the registry or for the application only
+	//
+
+	// Get user buffering mode
 	virtual bool GetBufferMode() = 0;
+	// Set application buffering mode
+	virtual void SetBufferMode(bool bActive = true) = 0;
+	// Get user number of pixel buffers
+	virtual int GetBuffers() = 0;
+	// Set application number of pixel buffers
+	virtual void SetBuffers(int nBuffers) = 0;
+	// Get user Maximum senders allowed
+	virtual int GetMaxSenders() = 0;
+	// Set user Maximum senders allowed
+	virtual void SetMaxSenders(int maxSenders) = 0;
 
-	virtual int  GetMaxSenders() = 0; // Get maximum senders allowed
-	virtual void SetMaxSenders(int maxSenders) = 0; // Set maximum senders allowed
-	virtual bool GetHostPath(const char *sendername, char *hostpath, int maxchars) = 0; // The path of the host that produced the sender
+	//
+	// 2.006 compatibility
+	//
+
+	// Create a sender
+	virtual bool CreateSender(const char *Sendername, unsigned int width, unsigned int height, DWORD dwFormat = 0) = 0;
+	// Update a sender
+	virtual bool UpdateSender(const char* Sendername, unsigned int width, unsigned int height) = 0;
+	// Create receiver connection
+	virtual bool CreateReceiver(char* Sendername, unsigned int &width, unsigned int &height, bool bUseActive = false) = 0;
+	// Check receiver connection
+	virtual bool CheckReceiver(char* Sendername, unsigned int &width, unsigned int &height, bool &bConnected) = 0;
+	// Get user DX9 mode
+	virtual bool GetDX9() = 0;
+	// Set user DX9 mode
+	virtual bool SetDX9(bool bDX9 = true) = 0;
+	// Get user memory share mode
+	virtual bool GetMemoryShareMode() = 0;
+	// Set user memory share mode
+	virtual bool SetMemoryShareMode(bool bMem = true) = 0;
+	// Get user CPU mode
+	virtual bool GetCPUmode() = 0;
+	// Set user CPU mode
+	virtual bool SetCPUmode(bool bCPU) = 0;
+	// Get user share mode
+	//  0 - texture, 1 - memory, 2 - CPU
+	virtual int GetShareMode() = 0;
+	// Set user share mode
+	//  0 - texture, 1 - memory, 2 - CPU
+	virtual void SetShareMode(int mode) = 0;
+
+	//
+	// Information
+	//
+
+	// The path of the host that produced the sender
+	virtual bool GetHostPath(const char *sendername, char *hostpath, int maxchars) = 0;
+	// Vertical sync status
 	virtual int  GetVerticalSync() = 0;
+	// Lock to monitor vertical sync
 	virtual bool SetVerticalSync(bool bSync = true) = 0;
+	// Get Spout version
+	virtual int GetSpoutVersion() = 0;
 
+	//
+	// Graphics compatibility
+	//
+
+	// Get auto GPU/CPU share depending on compatibility
+	virtual bool GetAutoShare() = 0;
+	// Set auto GPU/CPU share depending on compatibility
+	virtual void SetAutoShare(bool bAuto = true) = 0;
+	// OpenGL texture share compatibility
+	virtual bool IsGLDXready() = 0;
+
+	//
 	// Adapter functions
-	virtual int  GetNumAdapters() = 0; // Get the number of graphics adapters in the system
-	virtual bool GetAdapterName(int index, char *adaptername, int maxchars) = 0; // Get an adapter name
-	virtual bool SetAdapter(int index = 0) = 0; // Set required graphics adapter for output
-	virtual int  GetAdapter() = 0; // Get the SpoutDirectX global adapter index
+	//
 
-	// OpenGL
+	// The number of graphics adapters in the system
+	virtual int  GetNumAdapters() = 0;
+	// Adapter item name
+	virtual bool GetAdapterName(int index, char *adaptername, int maxchars) = 0;
+	// Get adapter index 
+	virtual int GetAdapter() = 0;
+	// Set graphics adapter for output
+	virtual bool SetAdapter(int index = 0) = 0;
+	// Current adapter index 
+	virtual int Adapter() = 0;
+	// Current adapter name
+	virtual char * AdapterName() = 0;
+
+	//
+	// OpenGL utilities
+	//
+
+	// Create an OpenGL window and context for situations where there is none.
+	//   Not used if applications already have an OpenGL context.
+	//   Always call CloseOpenGL afterwards.
 	virtual bool CreateOpenGL() = 0;
+	// Close OpenGL window
 	virtual bool CloseOpenGL() = 0;
-	// OpenGL texture copy (textures must be the same size)
+	// Copy OpenGL texture with optional invert
+	//   Textures must be the same size
 	virtual bool CopyTexture(GLuint SourceID, GLuint SourceTarget,
 		GLuint DestID, GLuint DestTarget,
 		unsigned int width, unsigned int height,
@@ -293,12 +370,12 @@ struct SPOUTLIBRARY
 
 };
 
-
 // Handle type. In C++ language the interface type is used.
 typedef SPOUTLIBRARY* SPOUTHANDLE;
 
-// Factory function that creates instances of the SPOUT object.
+// Factory function that creates an instance of the SPOUT object.
 extern "C" SPOUTAPI SPOUTHANDLE WINAPI GetSpout(VOID);
+
 
 #endif
 ////////////////////////////////////////////////////////////////////////////////
