@@ -3,22 +3,23 @@
 	Spout Video Player
 
 	A simple video player
+	with Spout and NDI output
 
-	Copyright (C) 2017-2021 Lynn Jarvis.
+	Copyright (C) 2017-2022 Lynn Jarvis.
 
 	=========================================================================
 	This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Lesser General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+	it under the terms of the GNU Lesser General Public License as published by
+	the Free Software Foundation, either version 3 of the License, or
+	(at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Lesser General Public License for more details.
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU Lesser General Public License for more details.
 
-    You should have received a copy of the GNU Lesser General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+	You should have received a copy of the GNU Lesser General Public License
+	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 	=========================================================================
 
 
@@ -46,7 +47,21 @@
 				  Version 1.003
 	13.01.21	- Update SpoutLibrary
 				  Version 1.004
-
+	20.04.22	- Update with Openframeworks 11 and Visual Studio 2022
+				  Change to GCLP_HICON and GCLP_HCURSOR for SetClassLong
+				  SpoutLibrary updated to VS2022
+				  Updated ofxNDI addon
+				  Include VS2022 runtime dlls in bin folder
+	10.05.22	- Changes thoughout to simplify the program
+				  Notes :
+					Performance limited or load may fail for high resolution (4K) videos
+					Debug build very slow
+	16.05.22	- Rebuild Release /MD Win32
+				  Tested with K-Lite codec pack 16.9.8 (Basic - April 15th 2022)
+				  https://codecguide.com/download_k-lite_codec_pack_basic.htm
+				  Resolution is limited to 1920x1080 for best performance
+				  4K videos may fail to load.
+				  Version 2.000
 
 */
 #include "ofApp.h"
@@ -56,19 +71,13 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
 static string NDInumber; // NDI library version number
 static HINSTANCE g_hInstance;
 
-LRESULT CALLBACK UserResolution(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
-static PSTR szText;
-static PSTR szXtext;
-static PSTR szYtext;
-static PSTR szResolutionX;
-static PSTR szResolutionY;
-static bool busemovie;
-
 // volume control modal dialog
 LRESULT CALLBACK UserVolume(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
 static HWND hwndVolume = NULL;
+
 // ofApp class pointer for the dialog to access class variables
-static ofApp * pThis = NULL;
+static ofApp* pThis = NULL;
+
 // Hook for volume dialog keyboard detection
 HHOOK hHook = NULL;
 LRESULT CALLBACK KeyProc(int nCode, WPARAM wParam, LPARAM lParam);
@@ -81,23 +90,23 @@ void ofApp::setup(){
 	// Get instance
 	g_hInstance = GetModuleHandle(NULL);
 
-	// Get product version number
-	char title[256];
-	DWORD dummy, dwSize;
-	char temp[MAX_PATH];
-
+	// Initialize SpoutLibrary
+	spoutsender = GetSpout();
 
 	// Debug console window so printf works
 	// Note use of WinMain in main.cpp and 
 	// Linker > System > Subsystem setting
-	/*
-	FILE* pCout;
-	AllocConsole();
-	freopen_s(&pCout, "CONOUT$", "w", stdout);
-	printf("Spout Video Player\n");
-	*/
+	// spoutsender->OpenSpoutConsole();
+	// printf("Spout Video Player\n");
+	// Option to show Spout logs
+	// spoutsender->EnableSpoutLog();
 
+	// Window title
+	char title[256];
 	strcpy_s(title, 256, "Spout Video Player");
+	// Get product version number
+	DWORD dummy, dwSize;
+	char temp[MAX_PATH];
 	if (GetModuleFileNameA(g_hInstance, temp, MAX_PATH)) {
 		dwSize = GetFileVersionInfoSizeA(temp, &dummy);
 		if (dwSize > 0) {
@@ -124,7 +133,7 @@ void ofApp::setup(){
 	pThis = this;
 
 	// Set a custom window icon
-	SetClassLong(hWnd, GCL_HICON, (LONG)LoadIconA(GetModuleHandle(NULL), MAKEINTRESOURCEA(IDI_SPOUTICON)));
+	SetClassLongA(hWnd, GCLP_HICON, (LONGLONG)LoadIconA(GetModuleHandle(NULL), MAKEINTRESOURCEA(IDI_SPOUTICON)));
 
 	// Disable escape key exit so we can exit fullscreen with Escape (see keyPressed)
 	ofSetEscapeQuitsApp(false);
@@ -137,7 +146,7 @@ void ofApp::setup(){
 	menu = new ofxWinMenu(this, hWnd);
 
 	// Register an ofApp function that is called when a menu item is selected.
-	// The function can be called anything but must exist. 
+	// The function can be called anything but must exist.
 	// See the example "appMenuFunction".
 	menu->CreateMenuFunction(&ofApp::appMenuFunction);
 
@@ -175,17 +184,20 @@ void ofApp::setup(){
 	menu->AddPopupItem(hPopup, "Full screen", false, false); // Not checked and not auto-check
 	bTopmost = false; // app is not topmost yet
 	menu->AddPopupItem(hPopup, "Show on top"); // Not checked (default)
-	
+
 	//
 	// Output popup menu
 	//
 	hPopup = menu->AddPopupMenu(hMenu, "Output");
 	bSpoutOut = true;
 	menu->AddPopupItem(hPopup, "Spout", true); // Checked
+	menu->AddPopupSeparator(hPopup);
 	bNDIout = false;
 	menu->AddPopupItem(hPopup, "NDI", false);  // Not checked
-	menu->AddPopupItem(hPopup, "Resolution", false, false);
-	
+	// Add NDI options
+	menu->AddPopupItem(hPopup, "    Async", false);  // Not checked
+	menu->EnablePopupItem("    Async", false); // Until "NDI" is checked
+
 	//
 	// Help popup menu
 	//
@@ -206,7 +218,7 @@ void ofApp::setup(){
 	bMouseExited = false;
 
 	// Text for Help > Information
-	strcat_s(info, 1024, "\nMouse\n");
+	strcat_s(info, 1024, "\nControls\n");
 	strcat_s(info, 1024, "  RH click window	show / hide controls\n");
 	strcat_s(info, 1024, "  RH click volume	mute\n");
 	strcat_s(info, 1024, "  LH click volume	adjust\n");
@@ -214,35 +226,23 @@ void ofApp::setup(){
 	strcat_s(info, 1024, "   >	forward one frame if paused\n");
 	strcat_s(info, 1024, "  <<	back 8 frames if paused\n");
 	strcat_s(info, 1024, "  >>	forward 8 frames if paused\n");
-	strcat_s(info, 1024, "\nKeyboard\n");
+	strcat_s(info, 1024, "\nKeys\n");
 	strcat_s(info, 1024, "  SPACE	show / hide controls\n");
-	strcat_s(info, 1024, "  'h'	show / hide information\n");
+	strcat_s(info, 1024, "  'i'	show / hide information\n");
 	strcat_s(info, 1024, "  'p'	play / pause\n");
 	strcat_s(info, 1024, "  'm'	toggle mute\n");
+	strcat_s(info, 1024, "  'f'	toggle full screen\n");
+	strcat_s(info, 1024, "  'ESC'	exit full screen\n");
 	strcat_s(info, 1024, "  LEFT/RIGHT	back/forward one frame\n");
 	strcat_s(info, 1024, "  PGUP/PGDN	back/forward 8 frames\n");
 	strcat_s(info, 1024, "  HOME/END	start/end of video\n");
-	strcat_s(info, 1024, "  'f'	toggle full screen\n");
-	strcat_s(info, 1024, "  'ESC'	exit full screen\n");
-
-	bUseMovieResolution = true; //  false; // Use movie size for sender resolution
-	bSplash = true; // set false for movie load testing
-
-	// starting resolution
-	ResolutionWidth  = (unsigned int)ofGetWidth();
-	ResolutionHeight = (unsigned int)ofGetHeight();
 
 	// Load splash screen
-	if(bSplash) {
-		splashImage.load("images/SpoutVideoPlayer.png");
-		splashImage.setImageType(OF_IMAGE_COLOR_ALPHA);
-	}
+	bSplash = true;
+	splashImage.load("images/SpoutVideoPlayer.png");
 
-	// Read ini file to get bLoop, bNDIout and bTopmost flags and resolution
+	// Read ini file to get bLoop, bSpoutOut, bNDIout, bNDIasync and bTopmost flags
 	ReadInitFile();
-
-	// Set fbo to current Resolution for splash and in case movie did not load
-	myFbo.allocate(ResolutionWidth, ResolutionHeight, GL_RGB);
 
 	//
 	// Play bar
@@ -293,23 +293,20 @@ void ofApp::setup(){
 	controlbar_start_time = ofGetElapsedTimeMillis();
 	bShowControls = false;
 
+	//
 	// SPOUT
-
-	// Initialize SpoutLibrary
-	spoutsender = GetSpout(); // Create an instance of the Spout library
+	//
 
 	bInitialized = false; // Spout sender initialization
 	bNDIinitialized = false; // NDI sende intiialization
 	strcpy_s(sendername, 256, "Spout Video Player"); // Set the sender name
-	
+
+	//
 	// NDI
-	// Initialize ofPixel buffers
-	ndiBuffer[0].allocate(ResolutionWidth, ResolutionHeight, 4);
-	ndiBuffer[1].allocate(ResolutionWidth, ResolutionHeight, 4);
-	idx = 0;
-	
-	// Optionally set NDI asynchronous sending instead of clocked at 60fps
-	NDIsender.SetAsync(false); // change to true for async
+	//
+
+	// Asynchronous sending instead of clocked at the movie fps
+	NDIsender.SetAsync(bNDIasync);
 	// Get NewTek library version number (dll) for the about box
 	// Version number is the last 7 chars - e.g 2.1.0.3
 	string NDIversion = NDIsender.GetNDIversion();
@@ -318,19 +315,32 @@ void ofApp::setup(){
 	// For movie frame fps calculations
 	// independent of the rendering rate
 	startTime = lastTime = frameTime = 0.0;
-	fps = frameRate = 30.0; // starting value
+	// starting value
+	fps = frameRate = 30.0;
 
 	// Keyboard hook for volume dialog
 	hHook = SetWindowsHookExA(WH_KEYBOARD, KeyProc, NULL, GetCurrentThreadId());
 
+	// Set RGBA pixel format compatible with Spout and NDI
+	myMovie.setPixelFormat(OF_PIXELS_RGBA);
+
+	// Movie pixels alpha may be zero
+	// If NDI format set to RGBX and will produce alpha = 255
+	// Studio Monitor : Settings > Video > Show alpha should be checked off
+	NDIsender.SetFormat(NDIlib_FourCC_video_type_RGBX);
+
+	// Necessary to draw fbo
+	ofDisableAlphaBlending();
+
 }
 
-
 //--------------------------------------------------------------
-void ofApp::update() {
+void ofApp::update(){
 
 	if (bLoaded) {
+
 		myMovie.update();
+
 		// Handle pause at the end of a movie if not looping
 		// This also prevents the old frame count from incrementing at the end of the movie
 		if (!bPaused && !bLoop) {
@@ -347,341 +357,122 @@ void ofApp::update() {
 
 			nOldFrames = 0;
 			nNewFrames++;
-			myFbo.begin();
-			myMovie.draw(0, 0, myFbo.getWidth(), myFbo.getHeight());
-			myFbo.end();
-	
+
+			// Attach the movie texture to the fbo with RGBA internal format
+			// Spout receivers require alpha
+			myFbo.bind();
+			myFbo.attachTexture(myMovie.getTexture(), GL_RGBA, 0);
+			myFbo.unbind();
+						
 			// Calculate movie fps
 			lastTime = startTime;
 			startTime = ofGetElapsedTimeMicros();
 			frameTime = (startTime - lastTime) / 1000000; // seconds
 			if (frameTime > 0.01) {
-				frameRate = floor(1.0 / frameTime + 0.5);
+				frameRate = round(1.0 / frameTime + 0.5);
 				// damping from a starting fps value
-				fps *= 0.99;
-				fps += 0.01*frameRate;
+				fps *= 0.98;
+				fps += 0.02 * frameRate;
 			}
 
 		}
 		else {
-			if(!bPaused) {
+			if (!bPaused) {
 				nOldFrames++;
-				if (nOldFrames > 15 && nNewFrames < 16) {// 1/2 second
-					// cannot call stop for failure
-					myMovie.close();
+				if (nOldFrames > 60 && nNewFrames < 61) { // 2 seconds at 30 fps
+					// Cannot call close for failure
 					bLoaded = false;
 					bSplash = true;
-					if (splashImage.isAllocated()) {
-						// draw splash image again
-						myFbo.begin();
-						splashImage.draw(0, 0, myFbo.getWidth(), myFbo.getHeight());
-						myFbo.end();
-					}
-					// Reset the resolution and textures
-					if (bInitialized) {
-						spoutsender->ReleaseSender(); // Release the sender
-						bInitialized = false;
-					}
-					if (bNDIinitialized) {
-						NDIsender.ReleaseSender();
-						bNDIinitialized = false;
-					}
-					doMessageBox(NULL, "Could not play the movie - unknown error\nOF recommends the free K - Lite Codec pack.\nHowever, some formats still do not play.\nProblems noted with WMV3 and MP42 codecs\nTry converting the file to another format.", "SpoutVideoPlayer", MB_ICONERROR);
+
+					// Release the senders
+					spoutsender->ReleaseSender();
+					bInitialized = false;
+					NDIsender.ReleaseSender();
+					bNDIinitialized = false;
+
+					doMessageBox(NULL, "Could not play the movie - unknown error - try loading again.\nResolutions greater than 1920x1080 can cause problems.\n\nMake sure you have installed the required codecs\nOF recommends the free K - Lite Codec pack.\nHowever, some formats do not play.\n\nProblems noted with WMV3 and MP42 codecs\nTry converting the file to another format.", "SpoutVideoPlayer", MB_ICONERROR);
 					return;
 				}
 			}
 		}
 	}
-	else if (splashImage.isAllocated()) {
-		myFbo.begin();
-		splashImage.draw(0, 0, myFbo.getWidth(), myFbo.getHeight());
-		myFbo.end();
-	}
 
 }
 
-
 //--------------------------------------------------------------
-void ofApp::draw() {
+void ofApp::draw(){
 
 	char str[256];
 	ofSetColor(255);
 
-	if(myFbo.isAllocated())
-		myFbo.draw(0, 0, ofGetWidth(), ofGetHeight());
-
-	if (bSplash || !bLoaded)
+	if (bSplash || !bLoaded) {
+		splashImage.draw(0, 0, ofGetWidth(), ofGetHeight());
 		return;
-
-	// SPOUT
-	if (bSpoutOut) {
-		if (!bInitialized) {
-			// Create a Spout sender the same size as the fbo resolution
-			// sendername initialized by movie load
-			bInitialized = spoutsender->CreateSender(sendername, (unsigned int)myFbo.getWidth(), (unsigned int)myFbo.getHeight());
-		}
-
-		if (bInitialized && myMovie.isFrameNew()) {
-			// Send the video texture out.
-			// Receivers will detect the movie frame rate
-			spoutsender->SendTexture(myFbo.getTexture().getTextureData().textureID,
-				myFbo.getTexture().getTextureData().textureTarget,
-				myFbo.getWidth(), myFbo.getHeight(), false);
-		}
 	}
 
-	// NDI
-	if (bNDIout) {
-		if (!bNDIinitialized) {
-			if (NDIsender.CreateSender(sendername, ResolutionWidth, ResolutionHeight)) {
-				bNDIinitialized = true;
-				// Reset buffers
-				if (ndiBuffer[0].isAllocated()) ndiBuffer[0].clear();
-				if (ndiBuffer[1].isAllocated()) ndiBuffer[1].clear();
-				ndiBuffer[0].allocate(ResolutionWidth, ResolutionHeight, 4);
-				ndiBuffer[1].allocate(ResolutionWidth, ResolutionHeight, 4);
-				idx = 0;
+	// Draw the movie frame
+	myMovie.draw(0, 0, ofGetWidth(), ofGetHeight());
+
+	if (myMovie.isFrameNew()) {
+
+		//
+		// Spout
+		//
+		if (bSpoutOut) {
+			// If not initialized, create a Spout sender the same size as the movie
+			// (sendername is initialized by movie load)
+			if (!bInitialized) {
+				bInitialized = spoutsender->CreateSender(sendername, (unsigned int)myMovie.getWidth(), (unsigned int)myMovie.getHeight());
+			}
+			else {
+				// Send the video texture attached to the fbo
+				// Receivers will detect the movie frame rate
+				spoutsender->SendTexture(myFbo.getTexture().getTextureData().textureID,
+					myFbo.getTexture().getTextureData().textureTarget,
+					(unsigned int)myFbo.getWidth(), (unsigned int)myFbo.getHeight(), false);
 			}
 		}
-		if (bNDIinitialized && myMovie.isFrameNew()) {
-			myFbo.bind();
-			glReadPixels(0, 0, ResolutionWidth, ResolutionHeight, GL_RGBA, GL_UNSIGNED_BYTE, ndiBuffer[0].getData());
-			myFbo.unbind();
-			NDIsender.SendImage(ndiBuffer[0].getData(), ResolutionWidth, ResolutionHeight);
-		}
-	}
 
+		//
+		// NDI
+		//
+		if (bNDIout) {
+			if (!bNDIinitialized) {
+				bNDIinitialized = NDIsender.CreateSender(sendername, (unsigned int)myMovie.getWidth(), (unsigned int)myMovie.getHeight());
+			}
+			else {
+				// Send the movie pixels directly for best performance
+				// NDI format set to RGBX will produce alpha = 255
+				NDIsender.SendImage(myMovie.getPixels().getData(), (unsigned int)myMovie.getWidth(), (unsigned int)myMovie.getHeight());
+			}
+		}
+	
+	} // endif new frame
+
+	// On-screen display
 	if (!bFullscreen) {
 
+		// 'Space" to show or hide controls
 		drawPlayBar();
 
 		if (bShowInfo) {
 			ofSetColor(255);
 			if (bLoaded) {
-				sprintf_s(str, 256, "Sending as : [%s] (%dx%d)", sendername, ResolutionWidth, ResolutionHeight);
+				sprintf_s(str, 256, "Sending as : [%s] (%dx%d)", sendername, (int)myMovie.getWidth(), (int)myMovie.getHeight());
 				myFont.drawString(str, 20, 30);
 			}
 			sprintf_s(str, 256, "fps: %3.3d", (int)fps);
 			myFont.drawString(str, ofGetWidth() - 90, 30);
 		}
 	}
-	
 
 }
 
 //--------------------------------------------------------------
-void ofApp::drawPlayBar()
-{
-	char str[128];
-
-	//
-	// Play bar
-	//
-
-	// Position of the first button
-	float icon_pos_x = icon_size / 2;
-	float icon_pos_y = progress_bar.getTop() + progress_bar.height *1.5;
-
-	// Draw controls unless the startup image is showing
-	if (!bSplash) {
-
-		// Show the control buttons and progress bar
-		if (bShowControls) {
-
-			controlbar_pos_y = (float)ofGetHeight() - controlbar_height;
-			controlbar_width = (float)ofGetWidth();
-
-			progress_bar.x = 0;
-			progress_bar.width = (float)ofGetWidth();
-			progress_bar.y = controlbar_pos_y;
-			if (!bShowInfo)
-				progress_bar.y += 14;
-
-			ofEnableAlphaBlending();
-			ofSetColor(26, 26, 26, 96);
-			ofDrawRectangle(0, progress_bar.y, controlbar_width, controlbar_height);
-
-			// If the movie is loaded, show the control bar
-			// bLoaded is set in OpenMovieFile
-			if (bLoaded) {
-
-				float position = myMovie.getPosition() / myMovie.getDuration();
-
-				// Draw progress bar
-				ofSetColor(0, 0, 0, 96);
-				ofDrawRectangle(progress_bar);
-
-				// Draw the movie progress in blue
-				ofSetColor(ofColor(74, 144, 226, 255));
-				progress_bar_played.x = progress_bar.x;
-				progress_bar_played.y = progress_bar.y;
-
-				progress_bar_played.width = progress_bar.width*myMovie.getPosition(); // pct
-				progress_bar_played.height = progress_bar.height;
-				ofDrawRectangle(progress_bar_played);
-
-				// Reverse
-				icon_reverse_pos_x = icon_pos_x;
-				icon_reverse_pos_y = icon_pos_y;
-				if (bPaused && icon_reverse_hover)
-					ofSetColor(icon_highlight_color);
-				else
-					ofSetColor(icon_background_color);
-				icon_background.x = icon_reverse_pos_x;
-				icon_background.y = icon_reverse_pos_y;
-				icon_background.width = icon_size;
-				icon_background.height = icon_size;
-				ofDrawRectRounded(icon_background, 2);
-				ofSetColor(255);
-				icon_reverse.draw(icon_reverse_pos_x, icon_reverse_pos_y);
-
-				// Back
-				icon_back_pos_x = icon_pos_x + 1.0*(icon_size * 3 / 2);
-				icon_back_pos_y = icon_pos_y;
-				if (bPaused && icon_back_hover)
-					ofSetColor(icon_highlight_color);
-				else
-					ofSetColor(icon_background_color);
-				icon_background.x = icon_back_pos_x;
-				icon_background.y = icon_back_pos_y;
-				icon_background.width = icon_size;
-				icon_background.height = icon_size;
-				ofDrawRectRounded(icon_background, 2);
-				ofSetColor(255);
-				icon_back.draw(icon_back_pos_x, icon_back_pos_y);
-
-				// Play/Pause
-				icon_playpause_pos_x = icon_pos_x + 2.0*(icon_size * 3 / 2);
-				icon_playpause_pos_y = icon_pos_y;
-				if (icon_playpause_hover)
-					ofSetColor(icon_highlight_color);
-				else
-					ofSetColor(icon_background_color);
-				icon_background.x = icon_playpause_pos_x;
-				icon_background.y = icon_playpause_pos_y;
-				icon_background.width = icon_size;
-				icon_background.height = icon_size;
-				ofDrawRectRounded(icon_background, 2);
-
-				// Draw play or pause button
-				ofSetColor(255);
-				if (bPaused)
-					icon_play.draw(icon_playpause_pos_x, icon_playpause_pos_y);
-				else
-					icon_pause.draw(icon_playpause_pos_x, icon_playpause_pos_y);
-
-			} // endif movie loaded
-
-			// Forward
-			icon_forward_pos_x = icon_pos_x + 3.0*(icon_size * 3 / 2);
-			icon_forward_pos_y = icon_pos_y;
-			if (bPaused && icon_forward_hover)
-				ofSetColor(icon_highlight_color);
-			else
-				ofSetColor(icon_background_color);
-			icon_background.x = icon_forward_pos_x;
-			icon_background.y = icon_forward_pos_y;
-			icon_background.width = icon_size;
-			icon_background.height = icon_size;
-			ofDrawRectRounded(icon_background, 2);
-			ofSetColor(255);
-			icon_forward.draw(icon_forward_pos_x, icon_forward_pos_y);
-
-			// Fast forward
-			icon_fastforward_pos_x = icon_pos_x + 4.0*(icon_size * 3 / 2);
-			icon_fastforward_pos_y = icon_pos_y;
-			if (bPaused && icon_fastforward_hover)
-				ofSetColor(icon_highlight_color);
-			else
-				ofSetColor(icon_background_color);
-			icon_background.x = icon_fastforward_pos_x;
-			icon_background.y = icon_fastforward_pos_y;
-			icon_background.width = icon_size;
-			icon_background.height = icon_size;
-			ofDrawRectRounded(icon_background, 2);
-			ofSetColor(255);
-			icon_fastforward.draw(icon_fastforward_pos_x, icon_fastforward_pos_y);
-
-			// Full screen
-			icon_fullscreen_pos_x = ofGetWidth() - (icon_size*1.5);
-			icon_fullscreen_pos_y = icon_pos_y;
-			if (icon_fullscreen_hover)
-				ofSetColor(icon_highlight_color);
-			else
-				ofSetColor(icon_background_color);
-			icon_background.x = icon_fullscreen_pos_x;
-			icon_background.y = icon_fullscreen_pos_y;
-			icon_background.width = icon_size;
-			icon_background.height = icon_size;
-			ofDrawRectRounded(icon_background, 2);
-			ofSetColor(255);
-			icon_full_screen.draw(icon_fullscreen_pos_x, icon_fullscreen_pos_y);
-
-			// Sound play / mute
-			icon_sound_pos_x = ofGetWidth() - (icon_size*3.0);
-			icon_sound_pos_y = icon_pos_y;
-			if (icon_sound_hover)
-				ofSetColor(icon_highlight_color);
-			else
-				ofSetColor(icon_background_color);
-			icon_background.x = icon_sound_pos_x;
-			icon_background.y = icon_sound_pos_y;
-			icon_background.width = icon_size;
-			icon_background.height = icon_size;
-			ofDrawRectRounded(icon_background, 2);
-
-			// Draw sound button
-			ofSetColor(255);
-			if (bMute)
-				icon_mute.draw(icon_sound_pos_x, icon_sound_pos_y);
-			else
-				icon_sound.draw(icon_sound_pos_x, icon_sound_pos_y);
-
-			ofDisableAlphaBlending();
-		} // endif show controls
-	} // endif no splash image
-
-	// Show keyboard shortcuts if not full screen
-	if (!bFullscreen && bShowInfo) {
-		sprintf_s(str, 256, "'  ' show controls : 'h' hide info : 'p' pause : 'm' mute : 'f' fullscreen");
-		myFont.drawString(str, (ofGetWidth() - myFont.stringWidth(str)) / 2, (ofGetHeight() - 3));
-		ofSetColor(255);
-	}
-	// ============ end playbar controls ==============
-}
-
-//--------------------------------------------------------------
-void ofApp::windowResized(int w, int h) {
-
-	if (!bResizeWindow) {
-		RECT rect;
-		GetWindowRect(hWnd, &rect);
-		windowWidth = (float)(rect.right - rect.left);
-		windowHeight = (float)(rect.bottom - rect.top);
-	}
-}
-
-
-//--------------------------------------------------------------
-void ofApp::dragEvent(ofDragInfo dragInfo) {
-
-	if (!OpenMovieFile(dragInfo.files[0])) {
-		// doMessageBox(NULL, "File load failed", "Error", MB_ICONERROR);
-		return;
-	}
-	else {
-		bLoaded = true;
-		movieFile = dragInfo.files[0];
-		bPaused = false;
-	}
-
-}
-
-//--------------------------------------------------------------
-void ofApp::keyPressed(int key) {
+void ofApp::keyPressed(int key){
 
 	// Close volume dialog
-	CloseVolume(); 
+	CloseVolume();
 
 	// Escape key exit has been disabled but it can still be checked here
 	if (key == VK_ESCAPE) {
@@ -692,11 +483,6 @@ void ofApp::keyPressed(int key) {
 		}
 		else {
 			if (doMessageBox(NULL, "Exit - are your sure?", "Warning", MB_YESNO) == IDYES) {
-				// SPOUT
-				if (bInitialized)
-					spoutsender->ReleaseSender(); // Release the sender
-				// NDI
-				if (bNDIinitialized) NDIsender.ReleaseSender();
 				ofExit();
 			}
 		}
@@ -705,8 +491,8 @@ void ofApp::keyPressed(int key) {
 	if (key == 'f' || key == 'F') {
 		bFullscreen = !bFullscreen;
 		doFullScreen(bFullscreen);
-		// Do not check this menu item
-		// If there is no menu when you call the SetPopupItem function it will crash
+		// Do not check this menu item because if there is no menu
+		// when you call the SetPopupItem function it will crash
 	}
 
 	if (key == 'l' || key == 'L') {
@@ -716,10 +502,10 @@ void ofApp::keyPressed(int key) {
 		}
 	}
 
-	if (key == 'm' || key == 'm') {
+	if (key == 'm' || key == 'M') {
 		if (bLoaded) {
 			bMute = !bMute;
-			if(bMute)
+			if (bMute)
 				myMovie.setVolume(0.0f);
 			else
 				myMovie.setVolume(movieVolume);
@@ -734,14 +520,14 @@ void ofApp::keyPressed(int key) {
 		}
 	}
 
-	if (key == 'h') {
+	if (key == 'i') {
 		bShowInfo = !bShowInfo;
 		menu->SetPopupItem("Info", bShowInfo);
 	}
 
 	if (key == 'p') {
 		bPaused = !bPaused;
-		if(bLoaded) 
+		if (bLoaded)
 			myMovie.setPaused(bPaused);
 	}
 
@@ -766,7 +552,7 @@ void ofApp::keyPressed(int key) {
 	}
 
 	// Hits an icon whether show info or not
-	float y = (float)ofGetHeight()-icon_size;
+	float y = (float)ofGetHeight() - icon_size;
 
 	// Back one frame if paused
 	if (key == OF_KEY_LEFT)
@@ -783,26 +569,11 @@ void ofApp::keyPressed(int key) {
 	// Forward 8 frames
 	if (key == OF_KEY_PAGE_DOWN)
 		HandleControlButtons(188.0f, y);
-
 }
 
 
 //--------------------------------------------------------------
-void ofApp::mousePressed(int x, int y, int button) {
-
-	// RH click in window area to show/hide controls
-	if (button == 2 && bLoaded && y < (ofGetHeight() - (int)(icon_size*2.0))) {
-		bShowControls = !bShowControls;
-		CloseVolume();
-		drawPlayBar();
-	}
-
-	HandleControlButtons((float)x, (float)y, button);
-
-}
-
-//--------------------------------------------------------------
-void ofApp::mouseMoved(int x, int y) {
+void ofApp::mouseMoved(int x, int y){
 
 	// Return if a messagebox is open
 	if (bMessageBox) return;
@@ -867,6 +638,47 @@ void ofApp::mouseMoved(int x, int y) {
 		}
 
 	} // end controls hover
+}
+
+//--------------------------------------------------------------
+void ofApp::mousePressed(int x, int y, int button){
+
+	// RH click in window area to show/hide controls
+	if (button == 2 && bLoaded && y < (ofGetHeight() - (int)(icon_size * 2.0))) {
+		bShowControls = !bShowControls;
+		CloseVolume();
+		drawPlayBar();
+	}
+
+	HandleControlButtons((float)x, (float)y, button);
+
+}
+
+//--------------------------------------------------------------
+void ofApp::windowResized(int w, int h){
+
+	if (!bResizeWindow) {
+		RECT rect;
+		GetWindowRect(hWnd, &rect);
+		windowWidth = (float)(rect.right - rect.left);
+		windowHeight = (float)(rect.bottom - rect.top);
+	}
+
+}
+
+//--------------------------------------------------------------
+void ofApp::dragEvent(ofDragInfo dragInfo) { 
+
+	if (OpenMovieFile(dragInfo.files[0])) {
+		myMovie.setPaused(false);
+		myMovie.play();
+		movieFile = dragInfo.files[0];
+		bLoaded = true;
+		bPaused = false;
+	}
+	else {
+		bLoaded = false;
+	}
 
 }
 
@@ -874,13 +686,10 @@ void ofApp::mouseMoved(int x, int y) {
 //--------------------------------------------------------------
 void ofApp::exit() {
 
-	if (bInitialized) {
-		spoutsender->ReleaseSender();
-		spoutsender->Release(); // Release the Spout SDK library instance
-	}
+	spoutsender->ReleaseSender();
+	spoutsender->Release(); // Release the Spout SDK library instance
 
-	if (bNDIinitialized) 
-		NDIsender.ReleaseSender();
+	NDIsender.ReleaseSender();
 
 	char initfile[MAX_PATH];
 	GetModuleFileNameA(NULL, initfile, MAX_PATH);
@@ -891,9 +700,191 @@ void ofApp::exit() {
 	WriteInitFile(initfile);
 
 	// Remove dialog keyboard hook
-	if(hHook)
+	if (hHook)
 		UnhookWindowsHookEx(hHook);
 
+}
+
+
+//--------------------------------------------------------------
+void ofApp::drawPlayBar()
+{
+	char str[256];
+
+	//
+	// Play bar
+	//
+
+	// Position of the first button
+	float icon_pos_x = icon_size / 2;
+	float icon_pos_y = progress_bar.getTop() + progress_bar.height * 1.5;
+
+	// Draw controls unless the startup image is showing
+	if (!bSplash) {
+
+		// Show the control buttons and progress bar
+		if (bShowControls) {
+
+			controlbar_pos_y = (float)ofGetHeight() - controlbar_height;
+			controlbar_width = (float)ofGetWidth();
+
+			progress_bar.x = 0;
+			progress_bar.width = (float)ofGetWidth();
+			progress_bar.y = controlbar_pos_y;
+			if (!bShowInfo)
+				progress_bar.y += 14;
+
+			ofEnableAlphaBlending();
+			ofSetColor(26, 26, 26, 96);
+			ofDrawRectangle(0, progress_bar.y, controlbar_width, controlbar_height);
+
+			// If the movie is loaded, show the control bar
+			// bLoaded is set in OpenMovieFile
+			if (bLoaded) {
+
+				float position = myMovie.getPosition() / myMovie.getDuration();
+
+				// Draw progress bar
+				ofSetColor(0, 0, 0, 96);
+				ofDrawRectangle(progress_bar);
+
+				// Draw the movie progress in blue
+				ofSetColor(ofColor(74, 144, 226, 255));
+				progress_bar_played.x = progress_bar.x;
+				progress_bar_played.y = progress_bar.y;
+
+				progress_bar_played.width = progress_bar.width * myMovie.getPosition(); // pct
+				progress_bar_played.height = progress_bar.height;
+				ofDrawRectangle(progress_bar_played);
+
+				// Reverse
+				icon_reverse_pos_x = icon_pos_x;
+				icon_reverse_pos_y = icon_pos_y;
+				if (bPaused && icon_reverse_hover)
+					ofSetColor(icon_highlight_color);
+				else
+					ofSetColor(icon_background_color);
+				icon_background.x = icon_reverse_pos_x;
+				icon_background.y = icon_reverse_pos_y;
+				icon_background.width = icon_size;
+				icon_background.height = icon_size;
+				ofDrawRectRounded(icon_background, 2);
+				ofSetColor(255);
+				icon_reverse.draw(icon_reverse_pos_x, icon_reverse_pos_y);
+
+				// Back
+				icon_back_pos_x = icon_pos_x + 1.0 * (icon_size * 3 / 2);
+				icon_back_pos_y = icon_pos_y;
+				if (bPaused && icon_back_hover)
+					ofSetColor(icon_highlight_color);
+				else
+					ofSetColor(icon_background_color);
+				icon_background.x = icon_back_pos_x;
+				icon_background.y = icon_back_pos_y;
+				icon_background.width = icon_size;
+				icon_background.height = icon_size;
+				ofDrawRectRounded(icon_background, 2);
+				ofSetColor(255);
+				icon_back.draw(icon_back_pos_x, icon_back_pos_y);
+
+				// Play/Pause
+				icon_playpause_pos_x = icon_pos_x + 2.0 * (icon_size * 3 / 2);
+				icon_playpause_pos_y = icon_pos_y;
+				if (icon_playpause_hover)
+					ofSetColor(icon_highlight_color);
+				else
+					ofSetColor(icon_background_color);
+				icon_background.x = icon_playpause_pos_x;
+				icon_background.y = icon_playpause_pos_y;
+				icon_background.width = icon_size;
+				icon_background.height = icon_size;
+				ofDrawRectRounded(icon_background, 2);
+
+				// Draw play or pause button
+				ofSetColor(255);
+				if (bPaused)
+					icon_play.draw(icon_playpause_pos_x, icon_playpause_pos_y);
+				else
+					icon_pause.draw(icon_playpause_pos_x, icon_playpause_pos_y);
+
+			} // endif movie loaded
+
+			// Forward
+			icon_forward_pos_x = icon_pos_x + 3.0 * (icon_size * 3 / 2);
+			icon_forward_pos_y = icon_pos_y;
+			if (bPaused && icon_forward_hover)
+				ofSetColor(icon_highlight_color);
+			else
+				ofSetColor(icon_background_color);
+			icon_background.x = icon_forward_pos_x;
+			icon_background.y = icon_forward_pos_y;
+			icon_background.width = icon_size;
+			icon_background.height = icon_size;
+			ofDrawRectRounded(icon_background, 2);
+			ofSetColor(255);
+			icon_forward.draw(icon_forward_pos_x, icon_forward_pos_y);
+
+			// Fast forward
+			icon_fastforward_pos_x = icon_pos_x + 4.0 * (icon_size * 3 / 2);
+			icon_fastforward_pos_y = icon_pos_y;
+			if (bPaused && icon_fastforward_hover)
+				ofSetColor(icon_highlight_color);
+			else
+				ofSetColor(icon_background_color);
+			icon_background.x = icon_fastforward_pos_x;
+			icon_background.y = icon_fastforward_pos_y;
+			icon_background.width = icon_size;
+			icon_background.height = icon_size;
+			ofDrawRectRounded(icon_background, 2);
+			ofSetColor(255);
+			icon_fastforward.draw(icon_fastforward_pos_x, icon_fastforward_pos_y);
+
+			// Full screen
+			icon_fullscreen_pos_x = ofGetWidth() - (icon_size * 1.5);
+			icon_fullscreen_pos_y = icon_pos_y;
+			if (icon_fullscreen_hover)
+				ofSetColor(icon_highlight_color);
+			else
+				ofSetColor(icon_background_color);
+			icon_background.x = icon_fullscreen_pos_x;
+			icon_background.y = icon_fullscreen_pos_y;
+			icon_background.width = icon_size;
+			icon_background.height = icon_size;
+			ofDrawRectRounded(icon_background, 2);
+			ofSetColor(255);
+			icon_full_screen.draw(icon_fullscreen_pos_x, icon_fullscreen_pos_y);
+
+			// Sound play / mute
+			icon_sound_pos_x = ofGetWidth() - (icon_size * 3.0);
+			icon_sound_pos_y = icon_pos_y;
+			if (icon_sound_hover)
+				ofSetColor(icon_highlight_color);
+			else
+				ofSetColor(icon_background_color);
+			icon_background.x = icon_sound_pos_x;
+			icon_background.y = icon_sound_pos_y;
+			icon_background.width = icon_size;
+			icon_background.height = icon_size;
+			ofDrawRectRounded(icon_background, 2);
+
+			// Draw sound button
+			ofSetColor(255);
+			if (bMute)
+				icon_mute.draw(icon_sound_pos_x, icon_sound_pos_y);
+			else
+				icon_sound.draw(icon_sound_pos_x, icon_sound_pos_y);
+
+			ofDisableAlphaBlending();
+		} // endif show controls
+	} // endif no splash image
+
+	// Show keyboard shortcuts if not full screen
+	if (!bFullscreen && bShowInfo) {
+		sprintf_s(str, 256, "Space / RH click - show controls : 'i' show info : 'p' pause : 'm' mute : 'f' fullscreen");
+		myFont.drawString(str, (ofGetWidth() - myFont.stringWidth(str)) / 2, (ofGetHeight() - 3));
+		ofSetColor(255);
+	}
+	// ============ end playbar controls ==============
 }
 
 //--------------------------------------------------------------
@@ -905,7 +896,7 @@ void ofApp::HandleControlButtons(float x, float y, int button) {
 	float position = 0.0f;
 	float frametime = 0.0333333333333333; // 30 fps
 
-	if(bLoaded)
+	if (bLoaded)
 		bPaused = myMovie.isPaused();
 
 	if (bLoaded &&
@@ -946,12 +937,12 @@ void ofApp::HandleControlButtons(float x, float y, int button) {
 	}
 
 	// Back
-	else if (bLoaded &&	bPaused &&
+	else if (bLoaded && bPaused &&
 		x >= (icon_back_pos_x) &&
 		x <= (icon_back_pos_x + icon_size) &&
 		y >= (icon_back_pos_y) &&
 		y <= (icon_back_pos_y + icon_size)) {
-			myMovie.previousFrame();
+		myMovie.previousFrame();
 	}
 
 	// Play / pause
@@ -964,12 +955,12 @@ void ofApp::HandleControlButtons(float x, float y, int button) {
 	}
 
 	// Forward
-	else if (bLoaded &&	bPaused &&
+	else if (bLoaded && bPaused &&
 		x >= (icon_forward_pos_x) &&
 		x <= (icon_forward_pos_x + icon_size) &&
 		y >= (icon_forward_pos_y) &&
 		y <= (icon_forward_pos_y + icon_size)) {
-			myMovie.nextFrame();
+		myMovie.nextFrame();
 	}
 
 	// Fast forward
@@ -999,7 +990,7 @@ void ofApp::HandleControlButtons(float x, float y, int button) {
 		y >= (icon_fullscreen_pos_y) &&
 		y <= (icon_fullscreen_pos_y + icon_size)) {
 		bFullscreen = !bFullscreen;
-			doFullScreen(bFullscreen);
+		doFullScreen(bFullscreen);
 	}
 
 	// Sound
@@ -1038,7 +1029,7 @@ void ofApp::setVideoPlaypause() {
 	if (bPaused)
 		bShowControls = true;
 
-	if(bLoaded)
+	if (bLoaded)
 		myMovie.setPaused(bPaused);
 
 }
@@ -1049,17 +1040,17 @@ bool ofApp::OpenMovieFile(string filePath) {
 	// Close volume dialog
 	CloseVolume();
 
-	// Stop if playing
-	if (bLoaded) {
-		myMovie.stop();
-		myMovie.close();
-		bLoaded = false;
-	}
+	bLoaded = false;
+	nOldFrames = 0;
+	nNewFrames = 0;
 
-	bLoaded = myMovie.load(filePath);
-	if (bLoaded) {
-			
-		// For test play 15 frames in case of incompatible codec to avoid a freeze
+	myMovie.stop();
+	myMovie.close();
+	
+	// Load and check the duration in case the user loads an image
+	if (myMovie.load(filePath) && myMovie.getDuration() > 0.0f) {
+
+		// Play 60 frames in case of incompatible codec to avoid a freeze
 		nOldFrames = 0;
 		nNewFrames = 0;
 
@@ -1076,61 +1067,39 @@ bool ofApp::OpenMovieFile(string filePath) {
 
 		myMovie.setVolume(movieVolume);
 
-		myMovie.play();
-
-	}
-	else {
-		doMessageBox(NULL, "Could not load the file\nMake sure you have codecs installed on your system.\nOF recommends the free K - Lite Codec pack.", "SpoutVideoPlayer", MB_ICONERROR);
-		bLoaded = false;
-		bSplash = true;
-		return false;
-	}
-
-	if(bLoaded) {
-
-		movieFile = filePath;
+		movieFile = filePath; // For movie folder open
 		bSplash = false;
 
-		movieWidth  = myMovie.getWidth();
+		movieWidth = myMovie.getWidth();
 		movieHeight = myMovie.getHeight();
 
-		if (bUseMovieResolution) {
-			ResolutionWidth  = movieWidth;
-			ResolutionHeight = movieHeight;
-		}
-
-		if(bResizeWindow)
+		if (bResizeWindow)
 			ResetWindow(true);
 
-		// Re-allocate buffers
-		if(myFbo.isAllocated()) myFbo.clear();
-		myFbo.allocate(ResolutionWidth, ResolutionHeight);
-
-		if (ndiBuffer[0].isAllocated()) ndiBuffer[0].clear();
-		if (ndiBuffer[1].isAllocated()) ndiBuffer[1].clear();
-		ndiBuffer[0].allocate(ResolutionWidth, ResolutionHeight, 4); // TODO : check
-		ndiBuffer[1].allocate(ResolutionWidth, ResolutionHeight, 4);
-
 		// Release senders to recreate
-		if (bInitialized) {
-			spoutsender->ReleaseSender();
-			bInitialized = false;
-		}
+		spoutsender->ReleaseSender();
+		bInitialized = false;
 
-		if (bNDIinitialized) {
-			NDIsender.ReleaseSender();
-			bNDIinitialized = false;
-		}
+		NDIsender.ReleaseSender();
+		bNDIinitialized = false;
 
 		// Set the sender name to the movie file name
 		strcpy_s(sendername, 256, filePath.c_str());
 		PathStripPathA(sendername);
 		PathRemoveExtensionA(sendername);
 
-	}
+		// Allocate the utility fbo to the movie size
+		myFbo.allocate(myMovie.getWidth(), myMovie.getHeight());
 
-	// It got this far OK
-	return true;
+		return true;
+
+	}
+	else {
+		doMessageBox(NULL, "Could not load the movie file\nMake sure you have codecs installed on your system.\nOF recommends the free K - Lite Codec pack.", "SpoutVideoPlayer", MB_ICONERROR);
+		bLoaded = false;
+		bSplash = true;
+		return false;
+	}
 
 }
 
@@ -1138,9 +1107,6 @@ bool ofApp::OpenMovieFile(string filePath) {
 //--------------------------------------------------------------
 void ofApp::ResetWindow(bool bCentre)
 {
-	if (bSplash)
-		return;
-
 	// Close volume dialog
 	CloseVolume();
 
@@ -1154,14 +1120,14 @@ void ofApp::ResetWindow(bool bCentre)
 
 		if (movieWidth < 1280) {
 			// Less than 1280 wide so use the movie dimensions
-			windowWidth  = movieWidth;
+			windowWidth = movieWidth;
 			windowHeight = movieHeight;
 		}
 		else {
 			// Larger than 1280 so set standard 1280 wide and adjust window height
 			// to match movie aspect ratio
 			windowWidth = 1280;
-			windowHeight = windowWidth*movieHeight / movieWidth;
+			windowHeight = windowWidth * movieHeight / movieWidth;
 		}
 	}
 
@@ -1178,12 +1144,12 @@ void ofApp::ResetWindow(bool bCentre)
 	AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW | WS_BORDER, true);
 
 	// Full window size
-	windowWidth  = (float)(rect.right - rect.left);
+	windowWidth = (float)(rect.right - rect.left);
 	windowHeight = (float)(rect.bottom - rect.top);
 
 	// Get current position
 	GetWindowRect(hWnd, &rect);
-	
+
 	// Set size and optionally centre on the screen
 	if (bCentre) {
 		SetWindowPos(hWnd, hWndMode,
@@ -1212,7 +1178,6 @@ void ofApp::appMenuFunction(string title, bool bChecked) {
 	ofFileDialogResult result;
 	string filePath;
 
-
 	// Keep the movie in sync while the menu stops drawing
 	if (title == "WM_ENTERMENULOOP") {
 		myMovie.setPaused(true);
@@ -1234,14 +1199,14 @@ void ofApp::appMenuFunction(string title, bool bChecked) {
 		result = ofSystemLoadDialog("Select a video file", false);
 		if (result.bSuccess) {
 			if (OpenMovieFile(result.getPath())) {
-				if (bLoaded) {
-					if (bLoop)
-						myMovie.setLoopState(OF_LOOP_NORMAL);
-					else
-						myMovie.setLoopState(OF_LOOP_NONE);
-					myMovie.play();
-					bPaused = false;
-				}
+				myMovie.setPaused(false);
+				myMovie.play();
+				movieFile = result.getPath();
+				bLoaded = true;
+				bPaused = false;
+			}
+			else {
+				bLoaded = false;
 			}
 		}
 	}
@@ -1256,7 +1221,9 @@ void ofApp::appMenuFunction(string title, bool bChecked) {
 	}
 
 	if (title == "Exit") {
-		ofExit(); // Quit the application
+		if (doMessageBox(NULL, "Exit - are your sure?", "Warning", MB_YESNO) == IDYES) {
+			ofExit();
+		}
 	}
 
 	//
@@ -1282,29 +1249,14 @@ void ofApp::appMenuFunction(string title, bool bChecked) {
 	}
 
 	if (title == "Controls") {
-
 		if (bSplash) {
 			doMessageBox(NULL, "No video loaded", "SpoutVideoPlayer", MB_ICONERROR);
-			return;
+			menu->SetPopupItem("Controls", false);
 		}
-		CloseVolume();
-		bShowControls = !bShowControls;  // Flag is used elsewhere in Draw
-		menu->SetPopupItem("Controls", bShowControls);
-	}
-
-	if (title == "Resolution") {
-		// Resolution dialog
-		if (EnterResolution()) {
-			// Reset the resolution and textures
-			if (bInitialized) {
-				spoutsender->ReleaseSender(); // Release the sender
-				bInitialized = false;
-			}
-			if (bNDIinitialized) {
-				NDIsender.ReleaseSender();
-				bNDIinitialized = false;
-			}
-			myFbo.allocate(ResolutionWidth, ResolutionHeight, GL_RGB);
+		else {
+			CloseVolume();
+			bShowControls = !bShowControls;  // Flag is used elsewhere in Draw
+			menu->SetPopupItem("Controls", bShowControls);
 		}
 	}
 
@@ -1313,7 +1265,6 @@ void ofApp::appMenuFunction(string title, bool bChecked) {
 		doTopmost(bTopmost);
 	}
 
-	
 	if (title == "Info") {
 		bShowInfo = bChecked;
 	}
@@ -1325,15 +1276,18 @@ void ofApp::appMenuFunction(string title, bool bChecked) {
 
 	if (title == "Resize to movie") {
 		bResizeWindow = !bResizeWindow;
-		// Adjust window and centre on the screen
-		if(bResizeWindow)
-			ResetWindow(true);
+		if (bLoaded) {
+			// Adjust window and centre on the screen
+			if (bResizeWindow)
+				ResetWindow(true);
+		}
 		menu->SetPopupItem("Resize to movie", bResizeWindow);
 	}
 
 	if (title == "Spout") {
 		// Auto-check
 		bSpoutOut = bChecked;
+		// If checked off close the Spout sender
 		if (!bSpoutOut) {
 			if (bInitialized) {
 				spoutsender->ReleaseSender(); // Release the sender
@@ -1346,13 +1300,21 @@ void ofApp::appMenuFunction(string title, bool bChecked) {
 		// Auto-check
 		bNDIout = bChecked;
 		if (!bNDIout) {
-			if (bNDIinitialized) {
-				NDIsender.ReleaseSender(); // Release the sender
-				bNDIinitialized = false;
-			}
+			NDIsender.ReleaseSender(); // Release the sender
+			bNDIinitialized = false;
+			menu->EnablePopupItem("    Async", false);
+		}
+		else {
+			menu->EnablePopupItem("    Async", true);
 		}
 	}
 
+	if (title == "    Async") {
+		// Auto-check
+		bNDIasync = bChecked;
+		// Enable or disable asynchronous sending
+		NDIsender.SetAsync(bNDIasync);
+	}
 
 	//
 	// Help menu
@@ -1384,12 +1346,14 @@ void ofApp::doFullScreen(bool bFullscreen)
 
 	if (bFullscreen) {
 
-		// set to full screen
+		//
+		// Set full screen
+		//
 
 		// Remove the controls if shown
 		bShowControls = false;
 
-		// get the current top window
+		// Get the current top window
 		hWndForeground = GetForegroundWindow();
 
 		// Get the client/window adjustment values
@@ -1402,7 +1366,7 @@ void ofApp::doFullScreen(bool bFullscreen)
 		nonFullScreenX = ofGetWidth();
 		nonFullScreenY = ofGetHeight();
 
-		// find the OpenGL window
+		// Find the OpenGL window
 		g_hwnd = WindowFromDC(wglGetCurrentDC());
 		GetWindowRect(g_hwnd, &windowRect); // preserve current size values
 		GetClientRect(g_hwnd, &clientRect);
@@ -1417,7 +1381,7 @@ void ofApp::doFullScreen(bool bFullscreen)
 
 		// Hide the System Task Bar
 		SetWindowPos(hWndTaskBar, HWND_NOTOPMOST, 0, 0, (rectTaskBar.right - rectTaskBar.left), (rectTaskBar.bottom - rectTaskBar.top), SWP_NOMOVE | SWP_NOSIZE);
-		
+
 		// Allow for multiple monitors
 		HMONITOR monitor = MonitorFromWindow(g_hwnd, MONITOR_DEFAULTTOPRIMARY);
 		MONITORINFO mi;
@@ -1435,13 +1399,15 @@ void ofApp::doFullScreen(bool bFullscreen)
 		ShowCursor(FALSE);
 
 		SetFocus(g_hwnd);
-		
+
 	} // endif bFullscreen
 	else {
-
+		
+		//
 		// Exit full screen
+		//
 
-		// restore original style
+		// Restore original style
 		SetWindowLongPtrA(hWnd, GWL_STYLE, dwStyle);
 
 		// Restore the menu
@@ -1478,7 +1444,7 @@ void ofApp::doFullScreen(bool bFullscreen)
 void ofApp::doTopmost(bool bTop)
 {
 	if (bTop) {
-		// get the current top window for return
+		// Get the current top window for return
 		hWndForeground = GetForegroundWindow();
 		// Set this window topmost
 		hWnd = WindowFromDC(wglGetCurrentDC());
@@ -1500,13 +1466,14 @@ void ofApp::doTopmost(bool bTop)
 
   //--------------------------------------------------------------
   // Save a configuration file in the executable folder
-void ofApp::WriteInitFile(const char *initfile)
+void ofApp::WriteInitFile(const char* initfile)
 {
 	char tmp[MAX_PATH];
 
 	//
 	// OPTIONS
-	//	
+	//
+
 	if (bLoop)
 		WritePrivateProfileStringA((LPCSTR)"Options", (LPCSTR)"loop", (LPCSTR)"1", (LPCSTR)initfile);
 	else
@@ -1532,32 +1499,10 @@ void ofApp::WriteInitFile(const char *initfile)
 	else
 		WritePrivateProfileStringA((LPCSTR)"Options", (LPCSTR)"NDI", (LPCSTR)"0", (LPCSTR)initfile);
 
-	//
-	// RESOLUTION
-	//
-	if (bUseMovieResolution)
-		WritePrivateProfileStringA((LPCSTR)"Resolution", (LPCSTR)"usemovie", (LPCSTR)"1", (LPCSTR)initfile);
+	if(bNDIasync)
+		WritePrivateProfileStringA((LPCSTR)"Options", (LPCSTR)"async", (LPCSTR)"1", (LPCSTR)initfile);
 	else
-		WritePrivateProfileStringA((LPCSTR)"Resolution", (LPCSTR)"usemovie", (LPCSTR)"0", (LPCSTR)initfile);
-
-	// If fit to movie size
-	if (bUseMovieResolution) {
-		sprintf_s(tmp, 256, "%-8.0d", ResolutionWidth);
-		tmp[8] = 0;
-	}
-	else {
-		sprintf_s(tmp, 256, "1280");
-	}
-	WritePrivateProfileStringA((LPCSTR)"Resolution", (LPCSTR)"width", (LPCSTR)tmp, (LPCSTR)initfile);
-
-	if (bUseMovieResolution) {
-		sprintf_s(tmp, 256, "%-8.0d", ResolutionHeight);
-		tmp[8] = 0;
-	}
-	else {
-		sprintf_s(tmp, 256, "720");
-	}
-	WritePrivateProfileStringA((LPCSTR)"Resolution", (LPCSTR)"height", (LPCSTR)tmp, (LPCSTR)initfile);
+		WritePrivateProfileStringA((LPCSTR)"Options", (LPCSTR)"async", (LPCSTR)"0", (LPCSTR)initfile);
 
 	// Volume
 	sprintf_s(tmp, 256, "%-8.2f", movieVolume); tmp[8] = 0;
@@ -1594,33 +1539,35 @@ void ofApp::ReadInitFile()
 	GetPrivateProfileStringA((LPCSTR)"Options", (LPSTR)"NDI", NULL, (LPSTR)tmp, 3, initfile);
 	if (tmp[0]) bNDIout = (atoi(tmp) == 1);
 
-	//
-	// RESOLUTION
-	//
-	GetPrivateProfileStringA((LPCSTR)"Resolution", (LPSTR)"usemovie", NULL, (LPSTR)tmp, 3, initfile);
-	if (tmp[0]) bUseMovieResolution = (atoi(tmp) == 1);
-
-	ResolutionWidth = (unsigned int)ofGetWidth();
-	ResolutionHeight = (unsigned int)ofGetHeight();
-
-	if (GetPrivateProfileStringA((LPCSTR)"Resolution", (LPSTR)"width", (LPSTR)"1280", (LPSTR)tmp, 8, initfile) > 0)
-		ResolutionWidth = atoi(tmp);
-
-	if (GetPrivateProfileStringA((LPCSTR)"Resolution", (LPSTR)"height", (LPSTR)"720", (LPSTR)tmp, 8, initfile) > 0)
-		ResolutionHeight = atoi(tmp);
+	GetPrivateProfileStringA((LPCSTR)"Options", (LPSTR)"async", NULL, (LPSTR)tmp, 3, initfile);
+	if (tmp[0]) bNDIasync = (atoi(tmp) == 1);
 
 	// Volume
 	if (GetPrivateProfileStringA((LPCSTR)"Audio", (LPSTR)"volume", (LPSTR)"1.00", (LPSTR)tmp, 8, initfile) > 0)
 		movieVolume = atof(tmp);
 
-	// Set up menus etc - assume menu has been set
+	// printf("ReadInitFile - menu = 0X%7.7X\n", PtrToUint(menu));
+	// printf("    bLoop         = %d\n", bLoop);
+	// printf("    bResizeWindow = %d\n", bResizeWindow);
+	// printf("    bTopmost      = %d\n", bTopmost);
+	// printf("    bSpoutOut     = %d\n", bSpoutOut);
+	// printf("    bNDIout       = %d\n", bNDIout);
+	// printf("    bNDIasync     = %d\n", bNDIasync);
+
+	// Set up menus etc (menu must have been set up)
 	menu->SetPopupItem("Loop", bLoop);
 	menu->SetPopupItem("Resize to movie", bResizeWindow);
 	menu->SetPopupItem("Topmost", bTopmost);
 	menu->SetPopupItem("Spout", bSpoutOut);
 	menu->SetPopupItem("NDI", bNDIout);
+	menu->SetPopupItem("    Async", bNDIasync);
+	if (bNDIout)
+		menu->EnablePopupItem("    Async", true);
+	else
+		menu->EnablePopupItem("    Async", false);
 
 }
+
 
 
 //
@@ -1629,6 +1576,7 @@ void ofApp::ReadInitFile()
 
 int ofApp::doMessageBox(HWND hwnd, LPCSTR message, LPCSTR caption, UINT uType)
 {
+
 	int iRet = 0;
 
 	bMessageBox = true; // To skip mouse events
@@ -1649,72 +1597,6 @@ int ofApp::doMessageBox(HWND hwnd, LPCSTR message, LPCSTR caption, UINT uType)
 
 }
 
-
-bool ofApp::EnterResolution()
-{
-	int retvalue;
-	char xtextin[256];
-	char ytextin[256];
-	char xresin[256];
-	char yresin[256];
-
-	sprintf_s(xtextin, 256, "%d", ResolutionWidth);
-	szXtext = (PSTR)xtextin; // move to a static string for the dialog
-	sprintf_s(ytextin, 256, "%d", ResolutionHeight);
-	szYtext = (PSTR)ytextin;
-
-	if (bLoaded) {
-		sprintf_s(xresin, 256, "%d", (int)myMovie.getWidth());
-		szResolutionX = (PSTR)xresin;
-		sprintf_s(yresin, 256, "%d", (int)myMovie.getHeight());
-		szResolutionY = (PSTR)yresin;
-	}
-	else {
-		sprintf_s(xresin, 256, "1280");
-		szResolutionX = (PSTR)xresin;
-		sprintf_s(yresin, 256, "720");
-		szResolutionY = (PSTR)yresin;
-	}
-
-	// Set the current movie size
-	busemovie = bUseMovieResolution;
-
-	// Keep the movie in sync while the menu stops drawing
-	if (bLoaded)
-		myMovie.setPaused(true);
-
-	// Show the dialog box 
-	retvalue = DialogBoxA(g_hInstance, MAKEINTRESOURCEA(IDD_RESOLUTION), hWnd, (DLGPROC)UserResolution);
-
-	if (bLoaded && !bPaused) 
-		myMovie.setPaused(false);
-
-	// OK 
-	if (retvalue != 0) {
-
-		bUseMovieResolution = busemovie;
-
-		if (bUseMovieResolution) {
-			if (bLoaded) {
-				ResolutionWidth  = (unsigned int)myMovie.getWidth();
-				ResolutionHeight = (unsigned int)myMovie.getHeight();
-			}
-		}
-		else {
-			ResolutionWidth = atoi(szXtext);
-			// Width a multiple of 4 for video
-			ResolutionWidth = (ResolutionWidth / 4) * 4;
-			ResolutionHeight = atoi(szYtext);
-			ResolutionHeight = (ResolutionHeight / 2) * 2;
-		}
-
-		return true;
-	}
-
-	// Cancel
-	return false;
-
-}
 
 // Message handler for About box
 INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
@@ -1742,14 +1624,14 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 					LPVOID pvProductVersion = NULL;
 					unsigned int iProductVersionLen = 0;
 					if (VerQueryValueA(&data[0], ("\\StringFileInfo\\080904E4\\ProductVersion"), &pvProductVersion, &iProductVersionLen)) {
-						sprintf_s(tmp, MAX_PATH, "%s\n", (char *)pvProductVersion);
+						sprintf_s(tmp, MAX_PATH, "%s\n", (char*)pvProductVersion);
 						strcat_s(about, 1024, tmp);
 					}
 				}
 			}
 		}
 
-		// Newtek credit - see resource,rc
+		// Newtek credit - see resource.rc
 		strcat_s(about, 1024, "\n\n");
 		strcat_s(about, 1024, "  NewTek NDI™ - Version ");
 		// Add NewTek library version number (dll)
@@ -1760,15 +1642,15 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 		//
 		// Hyperlink hand cursor
 		//
-		
+
 		// Spout
 		cursorHand = LoadCursor(NULL, IDC_HAND);
 		hwnd = GetDlgItem(hDlg, IDC_SPOUT_URL);
-		SetClassLongA(hwnd, GCL_HCURSOR, (long)cursorHand);
+		SetClassLongA(hwnd, GCLP_HCURSOR, (LONGLONG)cursorHand);
 
 		// NDI
 		hwnd = GetDlgItem(hDlg, IDC_NEWTEC_URL);
-		SetClassLong(hwnd, GCL_HCURSOR, (long)cursorHand);
+		SetClassLongA(hwnd, GCLP_HCURSOR, (LONGLONG)cursorHand);
 		break;
 
 	case WM_DRAWITEM:
@@ -1778,14 +1660,14 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 		if (lpdis->itemID == -1) break;
 		SetTextColor(lpdis->hDC, RGB(6, 69, 173));
 		switch (lpdis->CtlID) {
-			case IDC_NEWTEC_URL:
-				DrawTextA(lpdis->hDC, "https://www.ndi.tv/", -1, &lpdis->rcItem, DT_LEFT);
-				break;
-			case IDC_SPOUT_URL:
-				DrawTextA(lpdis->hDC, "http://spout.zeal.co", -1, &lpdis->rcItem, DT_LEFT);
-				break;
-			default:
-				break;
+		case IDC_NEWTEC_URL:
+			DrawTextA(lpdis->hDC, "https://www.ndi.tv/", -1, &lpdis->rcItem, DT_LEFT);
+			break;
+		case IDC_SPOUT_URL:
+			DrawTextA(lpdis->hDC, "http://spout.zeal.co", -1, &lpdis->rcItem, DT_LEFT);
+			break;
+		default:
+			break;
 		}
 		break;
 
@@ -1815,114 +1697,6 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 }
 
 
-// Message handler for resolution entry
-LRESULT CALLBACK UserResolution(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
-{
-	UNREFERENCED_PARAMETER(lParam); // suppress warning
-
-	static HWND hBar, hBox, hFocus;
-
-	switch (message) {
-
-	case WM_INITDIALOG:
-
-		// Fill current values
-		if (busemovie) {
-			SetDlgItemTextA(hDlg, IDC_RESOLUTION_X, szResolutionX);
-			SetDlgItemTextA(hDlg, IDC_RESOLUTION_Y, szResolutionY);
-			CheckDlgButton(hDlg, IDC_RESOLUTION_DEFAULT, BST_CHECKED);
-			CheckDlgButton(hDlg, IDC_RESOLUTION_CUSTOM, BST_UNCHECKED);
-			EnableWindow(GetDlgItem(hDlg, IDC_RESOLUTION_X), FALSE);
-			EnableWindow(GetDlgItem(hDlg, IDC_RESOLUTION_Y), FALSE);
-		}
-		else {
-			SetDlgItemTextA(hDlg, IDC_RESOLUTION_X, szXtext);
-			SetDlgItemTextA(hDlg, IDC_RESOLUTION_Y, szYtext);
-			CheckDlgButton(hDlg, IDC_RESOLUTION_DEFAULT, BST_UNCHECKED);
-			CheckDlgButton(hDlg, IDC_RESOLUTION_CUSTOM, BST_CHECKED);
-			EnableWindow(GetDlgItem(hDlg, IDC_RESOLUTION_X), TRUE);
-			EnableWindow(GetDlgItem(hDlg, IDC_RESOLUTION_Y), TRUE);
-		}
-		return TRUE;
-
-	case WM_COMMAND:
-		switch (LOWORD(wParam)) {
-
-		case IDC_RESOLUTION_DEFAULT :
-
-			if (IsDlgButtonChecked(hDlg, IDC_RESOLUTION_DEFAULT) == BST_CHECKED) {
-				busemovie = true;
-				CheckDlgButton(hDlg, IDC_RESOLUTION_CUSTOM, BST_UNCHECKED);
-				SetDlgItemTextA(hDlg, IDC_RESOLUTION_X, szResolutionX);
-				SetDlgItemTextA(hDlg, IDC_RESOLUTION_Y, szResolutionY);
-				EnableWindow(GetDlgItem(hDlg, IDC_RESOLUTION_X), FALSE);
-				EnableWindow(GetDlgItem(hDlg, IDC_RESOLUTION_Y), FALSE);
-			}
-			else {
-				busemovie = false;
-				CheckDlgButton(hDlg,  IDC_RESOLUTION_CUSTOM, BST_CHECKED);
-				SetDlgItemTextA(hDlg, IDC_RESOLUTION_X, szXtext);
-				SetDlgItemTextA(hDlg, IDC_RESOLUTION_Y, szYtext);
-				EnableWindow(GetDlgItem(hDlg, IDC_RESOLUTION_X), TRUE);
-				EnableWindow(GetDlgItem(hDlg, IDC_RESOLUTION_Y), TRUE);
-			}
-			break;
-
-		case IDC_RESOLUTION_CUSTOM:
-
-			if (IsDlgButtonChecked(hDlg, IDC_RESOLUTION_CUSTOM) == BST_CHECKED) {
-				busemovie = false;
-				EnableWindow(GetDlgItem(hDlg, IDC_RESOLUTION_X), TRUE);
-				EnableWindow(GetDlgItem(hDlg, IDC_RESOLUTION_Y), TRUE);
-				CheckDlgButton(hDlg, IDC_RESOLUTION_DEFAULT, BST_UNCHECKED);
-				SetDlgItemTextA(hDlg, IDC_RESOLUTION_X, szXtext);
-				SetDlgItemTextA(hDlg, IDC_RESOLUTION_Y, szYtext);
-			}
-			else {
-				busemovie = true;
-				EnableWindow(GetDlgItem(hDlg, IDC_RESOLUTION_X), FALSE);
-				EnableWindow(GetDlgItem(hDlg, IDC_RESOLUTION_Y), FALSE);
-				CheckDlgButton(hDlg, IDC_RESOLUTION_DEFAULT, BST_CHECKED);
-				SetDlgItemTextA(hDlg, IDC_RESOLUTION_X, szResolutionX);
-				SetDlgItemTextA(hDlg, IDC_RESOLUTION_Y, szResolutionY);
-			}
-			break;
-
-		case IDC_RESET:
-			sprintf_s(szXtext, 256, "1280");
-			SetDlgItemTextA(hDlg, IDC_RESOLUTION_X, szXtext);
-			sprintf_s(szYtext, 256, "720");
-			SetDlgItemTextA(hDlg, IDC_RESOLUTION_Y, szYtext);
-			CheckDlgButton(hDlg, IDC_RESOLUTION_CUSTOM, BST_CHECKED);
-			CheckDlgButton(hDlg, IDC_RESOLUTION_DEFAULT, BST_UNCHECKED);
-			EnableWindow(GetDlgItem(hDlg, IDC_RESOLUTION_X), TRUE);
-			EnableWindow(GetDlgItem(hDlg, IDC_RESOLUTION_Y), TRUE);
-			break;
-
-		case IDOK:
-			// Get contents of edit fields into static 256 char string
-			GetDlgItemTextA(hDlg, IDC_RESOLUTION_X, szXtext, 256);
-			GetDlgItemTextA(hDlg, IDC_RESOLUTION_Y, szYtext, 256);
-			if (IsDlgButtonChecked(hDlg, IDC_RESOLUTION_DEFAULT) == BST_CHECKED)
-				busemovie = true;
-			else
-				busemovie = false;
-			EndDialog(hDlg, 1);
-			break;
-
-		case IDCANCEL:
-			// User pressed cancel. Just take down dialog box.
-			EndDialog(hDlg, 0);
-			return TRUE;
-		default:
-			return FALSE;
-		}
-		break;
-	}
-
-	return FALSE;
-}
-
 // Message handler for Volume control dialog
 LRESULT CALLBACK UserVolume(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -1942,11 +1716,11 @@ LRESULT CALLBACK UserVolume(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPara
 		w = rect.right - rect.left;
 		h = rect.bottom - rect.top;
 		GetWindowRect(pThis->hWnd, &rect);
-		x = rect.right  - w - (int)pThis->icon_size * 3.5; // (int)(icon_sound_pos_x - icon_size * 1.5);
+		x = rect.right - w - (int)pThis->icon_size * 3.5; // (int)(icon_sound_pos_x - icon_size * 1.5);
 		y = rect.bottom - h - (int)pThis->icon_size; // (int)icon_sound_pos_y;
 		if (!pThis->bShowInfo)
 			y += 14;
-		SetWindowPos(hDlg, HWND_TOPMOST, x,	y, w, h, SWP_ASYNCWINDOWPOS | SWP_SHOWWINDOW);
+		SetWindowPos(hDlg, HWND_TOPMOST, x, y, w, h, SWP_ASYNCWINDOWPOS | SWP_SHOWWINDOW);
 
 		// Set the scroll bar limits and text
 		hBar = GetDlgItem(hDlg, IDC_TRACKBAR);
@@ -1957,7 +1731,7 @@ LRESULT CALLBACK UserVolume(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPara
 
 		return TRUE;
 
-	// https://msdn.microsoft.com/en-us/library/windows/desktop/hh298416(v=vs.85).aspx
+		// https://msdn.microsoft.com/en-us/library/windows/desktop/hh298416(v=vs.85).aspx
 	case WM_HSCROLL:
 		hBar = GetDlgItem(hDlg, IDC_TRACKBAR);
 		iPos = SendMessage(hBar, TBM_GETPOS, 0, 0);
@@ -1971,7 +1745,7 @@ LRESULT CALLBACK UserVolume(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPara
 		pThis->movieVolume = fValue;
 		pThis->myMovie.setVolume(fValue);
 		break;
-		
+
 	case WM_DESTROY:
 		DestroyWindow(hwndVolume);
 		hwndVolume = NULL;

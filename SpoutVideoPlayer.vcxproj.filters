@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="src\ofApp.cpp">
@@ -7,26 +7,26 @@
     <ClCompile Include="src\main.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\addons\ofxWinMenu\ofxWinMenu.cpp">
-      <Filter>Addons\ofxWinMenu</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\addons\ofxNDI\src\ofxNDIreceiver.cpp">
-      <Filter>Addons\ofxNDI\src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\addons\ofxNDI\src\ofxNDIsender.cpp">
-      <Filter>Addons\ofxNDI\src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\addons\ofxNDI\src\ofxNDIutils.cpp">
-      <Filter>Addons\ofxNDI\src</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\addons\ofxNDI\src\ofxNDIdynloader.cpp">
-      <Filter>Addons\ofxNDI\src</Filter>
+      <Filter>Addons\ofxNDI</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\addons\ofxNDI\src\ofxNDIreceive.cpp">
-      <Filter>Addons\ofxNDI\src</Filter>
+      <Filter>Addons\ofxNDI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\addons\ofxNDI\src\ofxNDIreceiver.cpp">
+      <Filter>Addons\ofxNDI</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\addons\ofxNDI\src\ofxNDIsend.cpp">
-      <Filter>Addons\ofxNDI\src</Filter>
+      <Filter>Addons\ofxNDI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\addons\ofxNDI\src\ofxNDIsender.cpp">
+      <Filter>Addons\ofxNDI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\addons\ofxNDI\src\ofxNDIutils.cpp">
+      <Filter>Addons\ofxNDI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\addons\ofxWinMenu\src\ofxWinMenu.cpp">
+      <Filter>Addons\ofxWinMenu</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -34,51 +34,51 @@
       <UniqueIdentifier>{d8376475-7454-4a24-b08a-aac121d3ad6f}</UniqueIdentifier>
     </Filter>
     <Filter Include="Addons">
-      <UniqueIdentifier>{30ec975d-63e8-44db-b0f2-481e2e3cedc3}</UniqueIdentifier>
+      <UniqueIdentifier>{50d3f491-e6ce-4160-9690-143ccc875d1d}</UniqueIdentifier>
     </Filter>
     <Filter Include="Addons\ofxWinMenu">
-      <UniqueIdentifier>{df7af64a-1db7-46d4-b87d-5021b0b4cc60}</UniqueIdentifier>
+      <UniqueIdentifier>{30f83bcc-28b0-4dd1-b940-7ed4e51ab142}</UniqueIdentifier>
     </Filter>
     <Filter Include="Addons\ofxNDI">
-      <UniqueIdentifier>{8e960493-1d71-4f6d-a643-8ecbf3be8216}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Addons\ofxNDI\src">
-      <UniqueIdentifier>{2a66c9a6-4bc1-49c6-b008-46776759412a}</UniqueIdentifier>
+      <UniqueIdentifier>{b84891e1-8adc-4dc3-83d3-3e013ae13077}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\ofApp.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\addons\ofxWinMenu\ofxWinMenu.h">
-      <Filter>Addons\ofxWinMenu</Filter>
-    </ClInclude>
     <ClInclude Include="src\resource.h">
       <Filter>src</Filter>
     </ClInclude>
+    <ClInclude Include="src\SpoutLibrary.h">
+      <Filter>src</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDI.h">
-      <Filter>Addons\ofxNDI\src</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDIreceiver.h">
-      <Filter>Addons\ofxNDI\src</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDIsender.h">
-      <Filter>Addons\ofxNDI\src</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDIutils.h">
-      <Filter>Addons\ofxNDI\src</Filter>
+      <Filter>Addons\ofxNDI</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDIdynloader.h">
-      <Filter>Addons\ofxNDI\src</Filter>
+      <Filter>Addons\ofxNDI</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDIplatforms.h">
-      <Filter>Addons\ofxNDI\src</Filter>
+      <Filter>Addons\ofxNDI</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDIreceive.h">
-      <Filter>Addons\ofxNDI\src</Filter>
+      <Filter>Addons\ofxNDI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDIreceiver.h">
+      <Filter>Addons\ofxNDI</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDIsend.h">
-      <Filter>Addons\ofxNDI\src</Filter>
+      <Filter>Addons\ofxNDI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDIsender.h">
+      <Filter>Addons\ofxNDI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDIutils.h">
+      <Filter>Addons\ofxNDI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxWinMenu\src\ofxWinMenu.h">
+      <Filter>Addons\ofxWinMenu</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

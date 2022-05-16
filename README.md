@@ -8,7 +8,7 @@ SpoutVideoPlayer is a simple video player for Spout and NDI output. The output c
 ofxWinMenu - https://github.com/leadedge/ofxWinMenu \
 ofxNDI - https://github.com/leadedge/ofxNDI
 
-The project files are for Visual Studio 2017
+The project files are for Visual Studio 2022
 
 Spout - https://github.com/leadedge/Spout2 \
 NDI - http://NDI.NewTek.com 
@@ -28,7 +28,7 @@ Mouse control :\
 \
 Keyboard :\
 &nbsp;&nbsp;&nbsp;&nbsp;SPACE	show / hide controls\
-&nbsp;&nbsp;&nbsp;&nbsp;'h'	- show / hide information\
+&nbsp;&nbsp;&nbsp;&nbsp;'i'	- show / hide information\
 &nbsp;&nbsp;&nbsp;&nbsp;'p'	- play / pause\
 &nbsp;&nbsp;&nbsp;&nbsp;'m'	- toggle mute\
 &nbsp;&nbsp;&nbsp;&nbsp;LEFT/RIGHT - back/forward one frame\

@@ -1,23 +1,25 @@
 /*
 
+	ofApp.h
+
 	Spout Video Player
 
 	A simple video player with Spout and NDI output
 
-	Copyright (C) 2017-2020 Lynn Jarvis.
+	Copyright (C) 2017-2022 Lynn Jarvis.
 
 	This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Lesser General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+	it under the terms of the GNU Lesser General Public License as published by
+	the Free Software Foundation, either version 3 of the License, or
+	(at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Lesser General Public License for more details.
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU Lesser General Public License for more details.
 
-    You should have received a copy of the GNU Lesser General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+	You should have received a copy of the GNU Lesser General Public License
+	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 #pragma once
@@ -34,158 +36,154 @@
 #pragma comment(lib, "Version.lib") // for GetFileVersionInfo
 
 
-class ofApp : public ofBaseApp{
-	public:
-		void setup();
-		void update();
-		void draw();
-		void exit();
+class ofApp : public ofBaseApp {
+public:
+	void setup();
+	void update();
+	void draw();
+	void exit();
 
-		void windowResized(int w, int h); 
-		void keyPressed(int key);
-		void mousePressed(int x, int y, int button);
-		void mouseMoved(int x, int y);
-		void dragEvent(ofDragInfo dragInfo);
+	void windowResized(int w, int h);
+	void keyPressed(int key);
+	void mousePressed(int x, int y, int button);
+	void mouseMoved(int x, int y);
+	void dragEvent(ofDragInfo dragInfo);
+
+	// Spout
+	SPOUTLIBRARY* spoutsender = nullptr; // Sender object
+	char sendername[256]{}; // Sender name
+	bool bSpoutOut = true;
+	bool bInitialized = false; // Initialization result
+
+	// NDI
+	ofxNDIsender NDIsender;
+	char NDIsendername[256]{};
+	bool bNDIout = false;
+	bool bNDIasync = false;
+	bool bNDIinitialized = false;
+
+	ofFbo myFbo;
+
+	// Window dimensions
+	float windowWidth = 0;
+	float windowHeight = 0;
+
+	// Movie
+	ofVideoPlayer myMovie; // Movie to send
+	ofImage splashImage; // Startup splash image
+	string movieFile;
+	float movieWidth = 0;
+	float movieHeight = 0;
+
+	// icons and controlbar
+	ofImage icon_reverse;
+	ofImage	icon_fastforward;
+	ofImage	icon_play;
+	ofImage	icon_pause;
+	ofImage	icon_forward;
+	ofImage	icon_back;
+	ofImage	icon_full_screen;
+	ofImage	icon_sound;
+	ofImage	icon_mute;
+
+	// Things to display the icons
+	ofRectangle	icon_background;
+	float		icon_size = 0.0f;
+	float		icon_playpause_pos_x = 0.0f;
+	float		icon_playpause_pos_y = 0.0f;
+	bool		icon_playpause_hover =false;
+	float		icon_sound_pos_x = 0.0f;
+	float		icon_sound_pos_y = 0.0f;
+	bool		icon_sound_hover = false;
+	float		icon_fullscreen_pos_x = 0.0f;
+	float		icon_fullscreen_pos_y = 0.0f;
+	bool		icon_fullscreen_hover = false;
+	float		icon_forward_pos_x = 0.0f;
+	float		icon_forward_pos_y = 0.0f;
+	bool		icon_forward_hover = 0.0f;
+	float		icon_back_pos_x = 0.0f;
+	float		icon_back_pos_y = 0.0f;
+	bool		icon_back_hover = false;
+
+	float		icon_reverse_pos_x = 0.0f;;
+	float		icon_reverse_pos_y = 0.0f;;
+	bool		icon_reverse_hover = false;
+
+	float		icon_fastforward_pos_x = 0.0f;;
+	float		icon_fastforward_pos_y = 0.0f;;
+	bool		icon_fastforward_hover = false;
+
+	ofColor		icon_highlight_color;
+	ofColor		icon_background_color;
+
+	ofFbo iconFbo;
+
+	// progress bar
+	ofRectangle	progress_bar;
+	ofRectangle	progress_bar_played;
+	float		controlbar_width = 0.0f;;
+	float		controlbar_height = 0.0f;;
+	float		controlbar_pos_y = 0.0f;;
+	float		controlbar_start_time = 0.0f;;
+	float		controlbar_timer_end = 0.0f;;
+	float		video_duration = 0.0f;;
+	float		video_percent_played = 0.0f;;
 	
-		// Spout
-		SPOUTLIBRARY * spoutsender;	// A sender object
-		char sendername[256];      // Sender name
-		bool bInitialized;         // Initialization result
-		bool bSpoutOut;
+	// Movie control
+	bool OpenMovieFile(string filePath);
+	bool bLoaded = false;
+	int nOldFrames = 0;
+	int nNewFrames = 0;
+	float movieVolume = 0.0f;
+	void setVideoPlaypause();
+	void HandleControlButtons(float x, float y, int button = 0);
+	void drawPlayBar();
+	void CloseVolume();
 
-		// NDI
-		ofxNDIsender NDIsender;
-		char NDIsendername[256];
-		bool bNDIout;
-		bool bNDIinitialized;
-		int idx;
-		ofPixels ndiBuffer[2];
+	// Menu
+	ofxWinMenu* menu = nullptr; // Menu object
+	void appMenuFunction(string title, bool bChecked); // Menu callback function
 
-		// Viewport and size
-		ofFbo myFbo;
-		ofTexture myTexture;
-		unsigned int ResolutionWidth; // global width and height
-		unsigned int ResolutionHeight;
-		float movieWidth;
-		float movieHeight;
-		float windowWidth;
-		float windowHeight;
+	// Flags
+	bool bSplash = true;
+	bool bShowControls = false;
+	bool bShowInfo = false;
+	bool bTopmost = false;
+	bool bMute = false;
+	bool bFullscreen = false;
+	bool bResizeWindow = false;
+	bool bPaused = false;
+	bool bLoop = false;
+	bool bStandard = false;
+	bool bMenuExit = false;
+	bool bMessageBox = false;
+	bool bMouseClicked = false;
+	bool bMouseExited = false;
 
-		ofVideoPlayer myMovie; // Movie to send
-		ofImage splashImage; // Startup splash image
-		string movieFile;
-		string imagePath;
-		string imagePrefix;
-		string imageType;
+	// Utility
+	void doFullScreen(bool bFull);
+	void doTopmost(bool bTop);
+	void ResetWindow(bool bCentre = false);
+	void WriteInitFile(const char* initfile);
+	void ReadInitFile();
 
-		// icons and controlbar
-		ofImage			icon_reverse;
-		ofImage			icon_fastforward;
-		ofImage			icon_play;
-		ofImage			icon_pause;
-		ofImage			icon_forward;
-		ofImage			icon_back;
-		ofImage			icon_full_screen;
-		ofImage			icon_sound;
-		ofImage			icon_mute;
-		
-		// Things to display the icons
-		ofRectangle		icon_background;
-		float			icon_size;
-		float			icon_playpause_pos_x;
-		float			icon_playpause_pos_y;
-		bool			icon_playpause_hover;
-		float			icon_sound_pos_x;
-		float			icon_sound_pos_y;
-		bool			icon_sound_hover;
-		float			icon_fullscreen_pos_x;
-		float			icon_fullscreen_pos_y;
-		bool			icon_fullscreen_hover;
-		float			icon_forward_pos_x;
-		float			icon_forward_pos_y;
-		bool			icon_forward_hover;
-		float			icon_back_pos_x;
-		float			icon_back_pos_y;
-		bool			icon_back_hover;
+	// Window
+	HWND     hWnd = NULL;            // Application window
+	HWND     hWndForeground = NULL;  // current foreground window
+	HWND     g_hwnd = NULL;          // global app winodw handlehandle to the OpenGL render window
+	RECT     windowRect;      // Render window rectangle
+	RECT     clientRect;      // Render window client rectangle
+	LONG_PTR dwStyle = NULL;         // original window style
+	int      nonFullScreenX = 0;  // original window position
+	int      nonFullScreenY = 0;
+	unsigned int AddX, AddY = 0;      // adjustment to client rect for reset of window size
+	
+	int doMessageBox(HWND hwnd, LPCSTR message, LPCSTR caption, UINT uType);
 
-		float			icon_reverse_pos_x;
-		float			icon_reverse_pos_y;
-		bool			icon_reverse_hover;
+	ofTrueTypeFont myFont;
+	char info[1024]{}; // for info box
 
-		float			icon_fastforward_pos_x;
-		float			icon_fastforward_pos_y;
-		bool			icon_fastforward_hover;
-
-		ofColor			icon_highlight_color;
-		ofColor			icon_background_color;
-
-		ofFbo iconFbo;
-
-		// progress bar
-		ofRectangle		progress_bar;
-		ofRectangle		progress_bar_played;
-		float			controlbar_width;
-		float			controlbar_height;
-		float			controlbar_pos_y;
-		float			controlbar_start_time;
-		float			controlbar_timer_end;
-		float			video_duration;
-		float			video_percent_played;
-
-		// Movie control
-		bool OpenMovieFile(string filePath);
-		bool bLoaded;
-		int nOldFrames;
-		int nNewFrames;
-		float movieVolume;
-		void setVideoPlaypause();
-		void HandleControlButtons(float x, float y, int button = 0);
-		void drawPlayBar();
-		void CloseVolume();
-
-		// Menu
-		ofxWinMenu * menu; // Menu object
-		void appMenuFunction(string title, bool bChecked); // Menu callback function
-
-		bool bSplash;
-		bool bShowControls;
-		bool bShowInfo;
-		bool bTopmost;
-		bool bMute;
-		bool bFullscreen;
-		bool bResizeWindow;
-		bool bPaused;
-		bool bLoop;
-		bool bStandard;
-		bool bMenuExit;
-		bool bMessageBox;
-		bool bMouseClicked;
-		bool bMouseExited;
-		
-		void doFullScreen(bool bFull);
-		void doTopmost(bool bTop);
-		void ResetWindow(bool bCentre = false);
-		void WriteInitFile(const char *initfile);
-		void ReadInitFile();
-
-		HWND         hWnd;            // Application window
-		HWND         hWndForeground;  // current foreground window
-		HWND         g_hwnd;          // global app winodw handlehandle to the OpenGL render window
-		RECT         windowRect;      // Render window rectangle
-		RECT         clientRect;      // Render window client rectangle
-		LONG_PTR     dwStyle;         // original window style
-		int          nonFullScreenX;  // original window position
-		int          nonFullScreenY;
-		unsigned int AddX, AddY;      // adjustment to client rect for reset of window size
-
-		bool EnterResolution();
-		bool bUseMovieResolution;
-		int doMessageBox(HWND hwnd, LPCSTR message, LPCSTR caption, UINT uType);
-
-		ofTrueTypeFont myFont;
-		char info[1024]; // for info box
-		// For received frame fps calculations
-		double startTime, lastTime, frameTime, frameRate, fps;
-
+	// For received frame fps calculations
+	double startTime, lastTime, frameTime, frameRate, fps = 0.0;
 
 };

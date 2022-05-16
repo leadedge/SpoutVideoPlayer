@@ -14,10 +14,10 @@
 #define IDC_TRACKBARVALUE                       205
 #define IDC_BUTTON                              206
 #define IDC_CHECKBOX                            207
-#define IDD_RESOLUTION                          900
-#define IDC_RESOLUTION_X                        901
-#define IDC_RESOLUTION_Y                        902
-#define IDC_RESOLUTION_DEFAULT                  903
-#define IDC_RESOLUTION_CUSTOM                   904
-#define IDC_RESET                               905
+// #define IDD_RESOLUTION                          900
+// #define IDC_RESOLUTION_X                        901
+// #define IDC_RESOLUTION_Y                        902
+// #define IDC_RESOLUTION_DEFAULT                  903
+// #define IDC_RESOLUTION_CUSTOM                   904
+// #define IDC_RESET                               905
 
