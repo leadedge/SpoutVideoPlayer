@@ -5,7 +5,7 @@
 	A simple video player
 	with Spout and NDI output
 
-	Copyright (C) 2017-2022 Lynn Jarvis.
+	Copyright (C) 2017-2023 Lynn Jarvis.
 
 	=========================================================================
 	This program is free software: you can redistribute it and/or modify
@@ -62,6 +62,11 @@
 				  Resolution is limited to 1920x1080 for best performance
 				  4K videos may fail to load.
 				  Version 2.000
+	21.12.22	- Change SetWindowLong to SetWindowLongPtr for custom icon
+				  Add mouse click test for outside client area to pause movie
+				  Add WM_NCLBUTTONDOWN to ofxWinMenu
+				  Rebuild /MD x64 with updated ofxNDI, SpoutLibrary and NDI 5.5.2
+				  Version 2.001
 
 */
 #include "ofApp.h"
@@ -69,7 +74,7 @@
 // DIALOGS
 INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
 static string NDInumber; // NDI library version number
-static HINSTANCE g_hInstance;
+static HINSTANCE g_hInstance = NULL;
 
 // volume control modal dialog
 LRESULT CALLBACK UserVolume(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
@@ -81,6 +86,7 @@ static ofApp* pThis = NULL;
 // Hook for volume dialog keyboard detection
 HHOOK hHook = NULL;
 LRESULT CALLBACK KeyProc(int nCode, WPARAM wParam, LPARAM lParam);
+
 
 //--------------------------------------------------------------
 void ofApp::setup(){
@@ -133,7 +139,7 @@ void ofApp::setup(){
 	pThis = this;
 
 	// Set a custom window icon
-	SetClassLongA(hWnd, GCLP_HICON, (LONGLONG)LoadIconA(GetModuleHandle(NULL), MAKEINTRESOURCEA(IDI_SPOUTICON)));
+	SetClassLongPtrA(hWnd, GCLP_HICON, (LONG_PTR)LoadIconA(GetModuleHandle(NULL), MAKEINTRESOURCEA(IDI_SPOUTICON)));
 
 	// Disable escape key exit so we can exit fullscreen with Escape (see keyPressed)
 	ofSetEscapeQuitsApp(false);
@@ -402,8 +408,16 @@ void ofApp::update(){
 //--------------------------------------------------------------
 void ofApp::draw(){
 
-	char str[256];
+	char str[256]{};
 	ofSetColor(255);
+
+	// Continue play if paused by menu selection
+	// or mouse click outside the client area
+	if (bNCmousePressed) {
+		if (myMovie.isLoaded())
+			myMovie.setPaused(false);
+		bNCmousePressed = false;
+	}
 
 	if (bSplash || !bLoaded) {
 		splashImage.draw(0, 0, ofGetWidth(), ofGetHeight());
@@ -658,7 +672,7 @@ void ofApp::mousePressed(int x, int y, int button){
 void ofApp::windowResized(int w, int h){
 
 	if (!bResizeWindow) {
-		RECT rect;
+		RECT rect{};
 		GetWindowRect(hWnd, &rect);
 		windowWidth = (float)(rect.right - rect.left);
 		windowHeight = (float)(rect.bottom - rect.top);
@@ -709,7 +723,7 @@ void ofApp::exit() {
 //--------------------------------------------------------------
 void ofApp::drawPlayBar()
 {
-	char str[256];
+	char str[256]{};
 
 	//
 	// Play bar
@@ -1178,18 +1192,19 @@ void ofApp::appMenuFunction(string title, bool bChecked) {
 	ofFileDialogResult result;
 	string filePath;
 
-	// Keep the movie in sync while the menu stops drawing
-	if (title == "WM_ENTERMENULOOP") {
-		myMovie.setPaused(true);
-	}
-
-	if (title == "WM_EXITMENULOOP") {
-		if (bLoaded) { // TODO
-			if (!bPaused) {
-				myMovie.play();
-			}
-		}
-		bMenuExit = true;
+	// Keep the movie in sync while the menu selection or
+	// mouse click on the title bar stops drawing.
+	// WM_ENTERMENULOOP and WM_EXITMENULOOP are returned by ofxWinMenu
+	// but are not required if WM_NCLBUTTONDOWN is tested.
+	if (title == "WM_NCLBUTTONDOWN") {
+		printf("ofxWinMenu [WM_NCLBUTTONDOWN]\n");
+		if (myMovie.isLoaded())
+			myMovie.setPaused(true);
+		// WM_NCLBUTTONUP is not generated if the
+		// mouse is released on the title bar.
+		// Reset the flag when Draw() resumes 
+		bNCmousePressed = true;
+		return;
 	}
 
 	//
@@ -1217,6 +1232,9 @@ void ofApp::appMenuFunction(string title, bool bChecked) {
 			strcpy_s(tmp, MAX_PATH, movieFile.c_str());
 			PathRemoveFileSpecA(tmp);
 			ShellExecuteA(g_hwnd, "open", tmp, NULL, NULL, SW_SHOWNORMAL);
+		}
+		else {
+			MessageBoxA(NULL, "No movie loaded", "Warning", MB_OK);
 		}
 	}
 
@@ -1464,8 +1482,8 @@ void ofApp::doTopmost(bool bTop)
 } // end doTopmost
 
 
-  //--------------------------------------------------------------
-  // Save a configuration file in the executable folder
+//--------------------------------------------------------------
+// Save a configuration file in the executable folder
 void ofApp::WriteInitFile(const char* initfile)
 {
 	char tmp[MAX_PATH];
@@ -1568,17 +1586,13 @@ void ofApp::ReadInitFile()
 
 }
 
-
-
 //
 // DIALOGS
 //
 
 int ofApp::doMessageBox(HWND hwnd, LPCSTR message, LPCSTR caption, UINT uType)
 {
-
 	int iRet = 0;
-
 	bMessageBox = true; // To skip mouse events
 
 	// Pause the movie or it still plays in the background
@@ -1602,10 +1616,11 @@ int ofApp::doMessageBox(HWND hwnd, LPCSTR message, LPCSTR caption, UINT uType)
 INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	UNREFERENCED_PARAMETER(lParam);
-	char tmp[MAX_PATH];
-	char about[1024];
-	DWORD dummy, dwSize;
-	LPDRAWITEMSTRUCT lpdis;
+	char tmp[MAX_PATH]{};
+	char about[1024]{};
+	DWORD dummy = 0;
+	DWORD dwSize = 0;
+	LPDRAWITEMSTRUCT lpdis{};
 	HWND hwnd = NULL;
 	HCURSOR cursorHand = NULL;
 	HINSTANCE hInstance = GetModuleHandle(NULL);
@@ -1702,9 +1717,13 @@ LRESULT CALLBACK UserVolume(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPara
 {
 	UNREFERENCED_PARAMETER(lParam); // suppress warning
 
-	static HWND hBar, hBox, hFocus;
-	static int iPos, dn, TrackBarPos;
-	float fValue;
+	HWND hBar = NULL;
+	HWND hBox = NULL;
+	HWND hFocus = NULL;
+	int iPos = 0;
+	int dn = 0;
+	int TrackBarPos = 0;
+	float fValue = 0.0f;
 
 	switch (message) {
 
@@ -1775,3 +1794,4 @@ void ofApp::CloseVolume()
 		hwndVolume = NULL;
 	}
 }
+

@@ -186,4 +186,7 @@ public:
 	// For received frame fps calculations
 	double startTime, lastTime, frameTime, frameRate, fps = 0.0;
 
+	// For movie pause with menu selection or title bar click
+	bool bNCmousePressed = false;
+
 };

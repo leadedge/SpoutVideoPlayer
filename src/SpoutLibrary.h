@@ -4,7 +4,7 @@
 //	Spout SDK dll compatible with any C++ compiler
 //
 /*
-		Copyright (c) 2016-2022, Lynn Jarvis. All rights reserved.
+		Copyright (c) 2016-2023, Lynn Jarvis. All rights reserved.
 
 		Redistribution and use in source and binary forms, with or without modification, 
 		are permitted provided that the following conditions are met:
@@ -183,10 +183,13 @@ struct SPOUTLIBRARY
 	virtual bool IsFrameCountEnabled() = 0;
 	// Sender frame rate control
 	virtual void HoldFps(int fps) = 0;
+	// Get system refresh rate
+	virtual double GetRefreshRate() = 0;
 	// Signal sync event 
 	virtual void SetFrameSync(const char* SenderName) = 0;
 	// Wait or test for a sync event
 	virtual bool WaitFrameSync(const char *SenderName, DWORD dwTimeout = 0) = 0;
+
 
 	//
 	// Data sharing
@@ -215,12 +218,26 @@ struct SPOUTLIBRARY
 	virtual void EnableSpoutLog() = 0;
 	// Enable spout log to a file with optional append
 	virtual void EnableSpoutLogFile(const char* filename, bool bappend = false) = 0;
+	// Disable logging to file
+	virtual void DisableSpoutLogFile() = 0;
+	// Remove a log file
+	virtual void RemoveSpoutLogFile(const char* filename = nullptr) = 0;
+	// Disable logging to console and file
+	virtual void DisableSpoutLog() = 0;
+	// Disable logging temporarily
+	virtual void DisableLogs() = 0;
+	// Enable logging again
+	virtual void EnableLogs() = 0;
+	// Are console logs enabled
+	virtual bool LogsEnabled() = 0;
+	// Is file logging enabled
+	virtual bool LogFileEnabled() = 0;
+	// Return the full log file path
+	virtual std::string GetSpoutLogPath() = 0;
 	// Return the log file as a string
 	virtual std::string GetSpoutLog() = 0;
 	// Show the log file folder in Windows Explorer
 	virtual void ShowSpoutLogs() = 0;
-	// Disable logging
-	virtual void DisableSpoutLog() = 0;
 	// Set the current log level
 	// SPOUT_LOG_SILENT  - Disable all messages
 	// SPOUT_LOG_VERBOSE - Show all messages
@@ -252,6 +269,7 @@ struct SPOUTLIBRARY
 	//
 	// Registry utilities
 	//
+
 	// Read subkey DWORD value
 	virtual bool ReadDwordFromRegistry(HKEY hKey, const char *subkey, const char *valuename, DWORD *pValue) = 0;
 	// Write subkey DWORD value
@@ -270,8 +288,17 @@ struct SPOUTLIBRARY
 	virtual bool FindSubKey(HKEY hKey, const char *subkey) = 0;
 
 	//
+	// Computer information
+	//
+
+	virtual std::string GetSDKversion() = 0;
+	virtual bool IsLaptop() = 0;
+	virtual HMODULE GetCurrentModule() = 0;
+
+	//
 	// Timing utilities
 	//
+
 	virtual void StartTiming() = 0;
 	virtual double EndTiming() = 0;
 
@@ -390,8 +417,28 @@ struct SPOUTLIBRARY
 	virtual char * AdapterName() = 0;
 	// Get adapter index 
 	virtual int GetAdapter() = 0;
-	// Set graphics adapter for output
-	virtual bool SetAdapter(int index = 0) = 0;
+
+	//
+	// Graphics preference
+	//
+
+	// Get the Windows graphics preference for an application
+	//	-1 - Not registered
+	//	 0 - Let Windows decide  DXGI_GPU_PREFERENCE_UNSPECIFIED
+	//	 1 - Power saving        DXGI_GPU_PREFERENCE_MINIMUM_POWER
+	//	 2 - High performance    DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE
+	virtual int GetPerformancePreference(const char* path) = 0;
+	// Set the Windows graphics preference for an application
+	virtual bool SetPerformancePreference(int preference, const char* path) = 0;
+	// Get the graphics adapter name for a Windows preference
+	virtual bool GetPreferredAdapterName(int preference, char* adaptername, int maxchars) = 0;
+	// Set graphics adapter index for a Windows preference
+	virtual bool SetPreferredAdapter(int preference) = 0;
+	// Availability of Windows graphics preference
+	virtual bool IsPreferenceAvailable() = 0;
+	// Is the path a valid application
+	virtual bool IsApplicationPath(const char* path) = 0;
+
 
 	//
 	// OpenGL utilities

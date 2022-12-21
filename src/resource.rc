@@ -50,8 +50,8 @@ IDI_SPOUTICON      ICON           "spout.ico"
 //
 LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 VS_VERSION_INFO VERSIONINFO
-    FILEVERSION     2,0,0,0
-    PRODUCTVERSION  2,0,0,0
+    FILEVERSION     2,0,0,1
+    PRODUCTVERSION  2,0,0,1
     FILEOS          VOS_NT
     FILETYPE        VFT_APP
     FILESUBTYPE     VFT2_UNKNOWN
@@ -64,12 +64,12 @@ VS_VERSION_INFO VERSIONINFO
         {
             VALUE "CompanyName", "Leading Edge Pty. Ltd.\0"
             VALUE "FileDescription", "Spout Video Player\0"
-            VALUE "FileVersion", "2.000\0"
+            VALUE "FileVersion", "2.001\0"
             VALUE "InternalName", "Spout  Video Player\0"
-            VALUE "LegalCopyright", "Copyright \251 2020-2022 Leading Edge Pty. Ltd.\0"
+            VALUE "LegalCopyright", "Copyright \251 2020-2023 Leading Edge Pty. Ltd.\0"
             VALUE "OriginalFilename", "Spout Video Player.exe\0"
             VALUE "ProductName", "Spout Video Player\0"
-            VALUE "ProductVersion", "2.000\0"
+            VALUE "ProductVersion", "2.001\0"
         }
     }
     BLOCK "VarFileInfo"
