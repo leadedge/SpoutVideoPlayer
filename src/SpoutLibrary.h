@@ -4,7 +4,7 @@
 //	Spout SDK dll compatible with any C++ compiler
 //
 /*
-		Copyright (c) 2016-2023, Lynn Jarvis. All rights reserved.
+		Copyright (c) 2016-2024, Lynn Jarvis. All rights reserved.
 
 		Redistribution and use in source and binary forms, with or without modification, 
 		are permitted provided that the following conditions are met:
@@ -29,13 +29,29 @@
 */
 #pragma once
 
-#ifndef __SpoutLibrary__
-#define __SpoutLibrary__
+#ifdef _MSC_VER
+#pragma warning(disable : 26433) // Function should be marked with 'override'
+#endif
 
 // for definitions
 #include <windows.h>
 #include <string>
-#include <GL/GL.h>
+#include <dxgiformat.h> // for DXGI_FORMAT enum
+
+// Define here to avoid include of GL.h 
+typedef int GLint;
+typedef unsigned int GLuint;
+typedef unsigned int GLenum;
+
+#ifndef GL_RGBA
+#define GL_RGBA 0x1908
+#endif
+#ifndef GL_BGRA
+#define GL_BGRA 0x80E1
+#endif
+#ifndef GL_BGRA_EXT
+#define GL_BGRA_EXT 0x80E1
+#endif
 
 #define SPOUTLIBRARY_EXPORTS // defined for this DLL. The application imports rather than exports
 
@@ -56,7 +72,10 @@
 // For Visual Studio, this warning is designated "Prefer" and "C" standard unscoped enums are
 // therefore retained for compatibility. The warning can be enabled or disabled here.
 //
+#ifdef _MSC_VER
 #pragma warning(disable:26812)
+#endif
+
 //
 enum SpoutLibLogLevel {
 	SPOUT_LOG_SILENT,
@@ -64,7 +83,8 @@ enum SpoutLibLogLevel {
 	SPOUT_LOG_NOTICE,
 	SPOUT_LOG_WARNING,
 	SPOUT_LOG_ERROR,
-	SPOUT_LOG_FATAL
+	SPOUT_LOG_FATAL,
+	SPOUT_LOG_NONE
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -78,6 +98,7 @@ enum SpoutLibLogLevel {
 
 struct SPOUTLIBRARY
 {
+
 	//
 	// Sender
 	//
@@ -189,7 +210,8 @@ struct SPOUTLIBRARY
 	virtual void SetFrameSync(const char* SenderName) = 0;
 	// Wait or test for a sync event
 	virtual bool WaitFrameSync(const char *SenderName, DWORD dwTimeout = 0) = 0;
-
+	// Enable / disable frame sync
+	virtual void EnableFrameSync(bool bSync = true) = 0;
 
 	//
 	// Data sharing
@@ -218,26 +240,12 @@ struct SPOUTLIBRARY
 	virtual void EnableSpoutLog() = 0;
 	// Enable spout log to a file with optional append
 	virtual void EnableSpoutLogFile(const char* filename, bool bappend = false) = 0;
-	// Disable logging to file
-	virtual void DisableSpoutLogFile() = 0;
-	// Remove a log file
-	virtual void RemoveSpoutLogFile(const char* filename = nullptr) = 0;
-	// Disable logging to console and file
-	virtual void DisableSpoutLog() = 0;
-	// Disable logging temporarily
-	virtual void DisableLogs() = 0;
-	// Enable logging again
-	virtual void EnableLogs() = 0;
-	// Are console logs enabled
-	virtual bool LogsEnabled() = 0;
-	// Is file logging enabled
-	virtual bool LogFileEnabled() = 0;
-	// Return the full log file path
-	virtual std::string GetSpoutLogPath() = 0;
 	// Return the log file as a string
 	virtual std::string GetSpoutLog() = 0;
 	// Show the log file folder in Windows Explorer
 	virtual void ShowSpoutLogs() = 0;
+	// Disable logging
+	virtual void DisableSpoutLog() = 0;
 	// Set the current log level
 	// SPOUT_LOG_SILENT  - Disable all messages
 	// SPOUT_LOG_VERBOSE - Show all messages
@@ -265,11 +273,22 @@ struct SPOUTLIBRARY
 	// MessageBox dialog with standard arguments
 	//   Replaces an existing MessageBox call
 	virtual int SpoutMessageBox(HWND hwnd, LPCSTR message, LPCSTR caption, UINT uType, DWORD dwMilliseconds = 0) = 0;
+	// Custom icon for SpoutMessageBox from resources
+	virtual void SpoutMessageBoxIcon(HICON hIcon) = 0;
+	// Custom icon for SpoutMessageBox from file
+	virtual bool SpoutMessageBoxIcon(std::string iconfile) = 0;
+	// Custom button for SpoutMessageBox
+	virtual void SpoutMessageBoxButton(int ID, std::wstring title) = 0;
+	// Activate modeless mode using SpoutPanel.exe
+	virtual void SpoutMessageBoxModeless(bool bMode = true) = 0;
+	// Window handle for SpoutMessageBox where not specified
+	virtual void SpoutMessageBoxWindow(HWND hWnd) = 0;
+	// Copy text to the clipboard
+	virtual bool CopyToClipBoard(HWND hwnd, const char* caps) = 0;
 
 	//
 	// Registry utilities
 	//
-
 	// Read subkey DWORD value
 	virtual bool ReadDwordFromRegistry(HKEY hKey, const char *subkey, const char *valuename, DWORD *pValue) = 0;
 	// Write subkey DWORD value
@@ -290,15 +309,12 @@ struct SPOUTLIBRARY
 	//
 	// Computer information
 	//
-
 	virtual std::string GetSDKversion() = 0;
 	virtual bool IsLaptop() = 0;
-	virtual HMODULE GetCurrentModule() = 0;
 
 	//
 	// Timing utilities
 	//
-
 	virtual void StartTiming() = 0;
 	virtual double EndTiming() = 0;
 
@@ -357,7 +373,7 @@ struct SPOUTLIBRARY
 	// Update a sender
 	virtual bool UpdateSender(const char* Sendername, unsigned int width, unsigned int height) = 0;
 	// Create receiver connection
-	virtual bool CreateReceiver(char* Sendername, unsigned int &width, unsigned int &height, bool bUseActive = false) = 0;
+	virtual bool CreateReceiver(char* Sendername, unsigned int &width, unsigned int &height) = 0;
 	// Check receiver connection
 	virtual bool CheckReceiver(char* Sendername, unsigned int &width, unsigned int &height, bool &bConnected) = 0;
 	// Get user DX9 mode
@@ -421,6 +437,9 @@ struct SPOUTLIBRARY
 	//
 	// Graphics preference
 	//
+	// Windows 10+ SDK required
+	//
+#ifdef NTDDI_WIN10_RS4
 
 	// Get the Windows graphics preference for an application
 	//	-1 - Not registered
@@ -438,6 +457,7 @@ struct SPOUTLIBRARY
 	virtual bool IsPreferenceAvailable() = 0;
 	// Is the path a valid application
 	virtual bool IsApplicationPath(const char* path) = 0;
+#endif
 
 
 	//
@@ -456,6 +476,23 @@ struct SPOUTLIBRARY
 		GLuint DestID, GLuint DestTarget,
 		unsigned int width, unsigned int height,
 		bool bInvert = false, GLuint HostFBO = 0) = 0;
+
+	//
+	// Formats
+	//
+
+	// Get sender DX11 shared texture format
+	virtual DXGI_FORMAT GetDX11format() = 0;
+	// Set sender DX11 shared texture format
+	virtual void SetDX11format(DXGI_FORMAT textureformat) = 0;
+	// Return OpenGL compatible DX11 format
+	virtual DXGI_FORMAT DX11format(GLint glformat) = 0;
+	// Return DX11 compatible OpenGL format
+	virtual GLint GLDXformat(DXGI_FORMAT textureformat = DXGI_FORMAT_UNKNOWN) = 0;
+	// Return OpenGL texture internal format
+	virtual int GLformat(GLuint TextureID, GLuint TextureTarget) = 0;
+	// Return OpenGL texture format description
+	virtual std::string GLformatName(GLint glformat = 0) = 0;
 
 	//
 	// DirectX utilities
@@ -485,6 +522,4 @@ typedef SPOUTLIBRARY* SPOUTHANDLE;
 // Factory function that creates an instance of the SPOUT object.
 extern "C" SPOUTAPI SPOUTHANDLE WINAPI GetSpout(VOID);
 
-
-#endif
 ////////////////////////////////////////////////////////////////////////////////

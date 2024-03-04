@@ -1,3 +1,7 @@
+// To avoid Openframeworks warning
+// "Boost.Config is older than your compiler version"
+#define BOOST_CONFIG_SUPPRESS_OUTDATED_MESSAGE
+
 #include "ofMain.h"
 #include "ofApp.h"
 
@@ -41,6 +45,11 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	// this kicks off the running of my app
 	// can be OF_WINDOW or OF_FULLSCREEN
 	// pass in width and height too:
-	ofRunApp( new ofApp());
+	// ofRunApp( new ofApp());
+
+    // Allow for app lpCmdLine
+    ofApp* app = new ofApp();
+    app->lpCmdLine = lpCmdLine;
+    ofRunApp(app); // start the app
 
 }

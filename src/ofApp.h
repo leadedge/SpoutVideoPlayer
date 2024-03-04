@@ -24,23 +24,26 @@
 */
 #pragma once
 
+// To avoid Openframeworks warning
+#define BOOST_CONFIG_SUPPRESS_OUTDATED_MESSAGE
+
 #include "ofMain.h"
 #include "SpoutLibrary.h" // For Spout functions
 #include "ofxWinMenu.h" // Addon for a windows style menu
 #include "ofxNDI.h" // Addon for NDI streaming
+#include "SpoutGL\SpoutShaders.h" // For image adjust
 #include "resource.h"
 #include <shlwapi.h>  // for path functions
 #include <Shellapi.h> // for shellexecute
-
 #pragma comment(lib, "shlwapi.lib")  // for path functions
 #pragma comment(lib, "Version.lib") // for GetFileVersionInfo
-
 
 class ofApp : public ofBaseApp {
 public:
 	void setup();
 	void update();
 	void draw();
+	
 	void exit();
 
 	void windowResized(int w, int h);
@@ -62,7 +65,34 @@ public:
 	bool bNDIasync = false;
 	bool bNDIinitialized = false;
 
-	ofFbo myFbo;
+	// Shaders
+	spoutShaders shaders;
+
+	// For the Adjust dialog
+	float Brightness = 0.0;
+	float Contrast   = 1.0;
+	float Saturation = 1.0;
+	float Gamma      = 1.0;
+	float Blur       = 0.0;
+	float Sharpness  = 0.0;
+	float Sharpwidth = 3.0; // 3x3, 5x5, 7x7
+	bool bAdaptive   = false; // CAS adaptive sharpen
+	bool bFlip       = false;
+	bool bMirror     = false;
+	bool bSwap       = false;
+	bool bAlpha      = true; // TODO
+	// For cancel
+	float OldBrightness = 0.0;
+	float OldContrast   = 1.0;
+	float OldSaturation = 1.0;
+	float OldGamma      = 1.0;
+	float OldBlur       = 0.0;
+	float OldSharpness  = 0.0;
+	float OldSharpwidth = 3.0;
+	bool OldAdaptive    = false;
+	bool OldFlip        = false;
+	bool OldMirror      = false;
+	bool OldSwap        = false;
 
 	// Window dimensions
 	float windowWidth = 0;
@@ -82,6 +112,7 @@ public:
 	ofImage	icon_pause;
 	ofImage	icon_forward;
 	ofImage	icon_back;
+	ofImage	icon_stop;
 	ofImage	icon_full_screen;
 	ofImage	icon_sound;
 	ofImage	icon_mute;
@@ -113,10 +144,15 @@ public:
 	float		icon_fastforward_pos_y = 0.0f;;
 	bool		icon_fastforward_hover = false;
 
+	float		icon_stop_pos_x = 0.0f;
+	float		icon_stop_pos_y = 0.0f;
+	bool		icon_stop_hover = false;
+
 	ofColor		icon_highlight_color;
 	ofColor		icon_background_color;
 
 	ofFbo iconFbo;
+	ofFbo myFbo;
 
 	// progress bar
 	ofRectangle	progress_bar;
@@ -131,6 +167,7 @@ public:
 	
 	// Movie control
 	bool OpenMovieFile(string filePath);
+	void CloseMovie();
 	bool bLoaded = false;
 	int nOldFrames = 0;
 	int nNewFrames = 0;
@@ -168,16 +205,33 @@ public:
 	void ReadInitFile();
 
 	// Window
-	HWND     hWnd = NULL;            // Application window
-	HWND     hWndForeground = NULL;  // current foreground window
-	HWND     g_hwnd = NULL;          // global app winodw handlehandle to the OpenGL render window
+	HWND     hWnd = NULL;              // Application window
+	HWND     hWndForeground = NULL;    // current foreground window
+	HWND     g_hWnd = NULL;            // global app winodw handlehandle to the OpenGL render window
+	GLint    glFormat = GL_RGBA;       // Default OpenGL texture format
+	char     g_InitFile[MAX_PATH]={0}; // Initfile
+
 	RECT     windowRect;      // Render window rectangle
 	RECT     clientRect;      // Render window client rectangle
 	LONG_PTR dwStyle = NULL;         // original window style
 	int      nonFullScreenX = 0;  // original window position
 	int      nonFullScreenY = 0;
 	unsigned int AddX, AddY = 0;      // adjustment to client rect for reset of window size
-	
+
+	double TimeoutPeriod = 2000.0; // 2 seconds
+	double Timeout = 0.0;
+	double TimeoutStart = 0.0;
+	double TimeoutEnd = 0.0;
+	std::chrono::steady_clock::time_point start;
+	std::chrono::steady_clock::time_point end;
+
+
+	// For command line
+	LPSTR lpCmdLine = nullptr;
+	void ParseCommandLine(LPSTR lpCmdLine);
+	std::string FindArgString(std::string line, std::string arg);
+
+
 	int doMessageBox(HWND hwnd, LPCSTR message, LPCSTR caption, UINT uType);
 
 	ofTrueTypeFont myFont;

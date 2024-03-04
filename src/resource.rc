@@ -38,20 +38,62 @@ FONT 8, "Ms Shell Dlg"
 	CONTROL         "", IDC_TRACKBAR, TRACKBAR_CLASS, WS_TABSTOP | TBS_BOTH | TBS_NOTICKS, 8, 2, 100, 10, WS_EX_LEFT
 }
 
+LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
+IDD_ADJUSTBOX DIALOG 0, 0, 200, 220
+STYLE DS_3DLOOK | DS_CENTERMOUSE | DS_SHELLFONT | WS_CAPTION | WS_VISIBLE | WS_POPUP
+CAPTION "Adjust"
+FONT 9, "Microsoft Sans Serif"
+{
+    LTEXT           "Strength", -1, 17, 133, 33, 9, SS_LEFT, WS_EX_LEFT
+        CONTROL         "", IDC_BLUR, TRACKBAR_CLASS, WS_TABSTOP | TBS_BOTH | TBS_NOTICKS, 56, 133, 100, 10, WS_EX_LEFT
+        LTEXT           "Static", IDC_BLUR_TEXT, 164, 133, 18, 9, SS_LEFT, WS_EX_LEFT
+        GROUPBOX        "Blur", -1, 8, 119, 180, 33, 0, WS_EX_LEFT
+        GROUPBOX        "Colour", -1, 8, 7, 180, 66, 0, WS_EX_LEFT
+        LTEXT           "Sharpness", -1, 17, 88, 33, 9, SS_LEFT, WS_EX_LEFT
+        CONTROL         "", IDC_SHARPNESS, TRACKBAR_CLASS, WS_TABSTOP | TBS_BOTH | TBS_NOTICKS, 56, 88, 100, 10, WS_EX_LEFT
+        LTEXT           "Static", IDC_SHARPNESS_TEXT, 164, 88, 18, 9, SS_LEFT, WS_EX_LEFT
+        GROUPBOX        "Sharpen", -1, 8, 76, 180, 40, 0, WS_EX_LEFT
+        AUTORADIOBUTTON " 3 x 3", IDC_SHARPNESS_3x3, 18, 101, 30, 8, 0, WS_EX_LEFT
+        AUTORADIOBUTTON " 5 x 5", IDC_SHARPNESS_5x5, 55, 101, 30, 8, 0, WS_EX_LEFT
+        AUTORADIOBUTTON " 7 x 7", IDC_SHARPNESS_7x7, 92, 101, 30, 8, 0, WS_EX_LEFT
+        AUTOCHECKBOX    "Adaptive", IDC_ADAPTIVE, 129, 101, 40, 8, 0, WS_EX_LEFT
+        LTEXT           "Gamma", -1, 17, 57, 33, 9, SS_LEFT, WS_EX_LEFT
+        CONTROL         "", IDC_GAMMA, TRACKBAR_CLASS, WS_TABSTOP | TBS_BOTH | TBS_NOTICKS, 56, 57, 100, 10, WS_EX_LEFT
+        LTEXT           "Static", IDC_GAMMA_TEXT, 164, 57, 18, 9, SS_LEFT, WS_EX_LEFT
+        LTEXT           "Saturation", -1, 17, 45, 33, 9, SS_LEFT, WS_EX_LEFT
+        CONTROL         "", IDC_SATURATION, TRACKBAR_CLASS, WS_TABSTOP | TBS_BOTH | TBS_NOTICKS, 56, 45, 100, 10, WS_EX_LEFT
+        LTEXT           "Static", IDC_SATURATION_TEXT, 164, 45, 18, 9, SS_LEFT, WS_EX_LEFT
+        LTEXT           "Contrast", -1, 17, 33, 33, 9, SS_LEFT, WS_EX_LEFT
+        CONTROL         "", IDC_CONTRAST, TRACKBAR_CLASS, WS_TABSTOP | TBS_BOTH | TBS_NOTICKS, 56, 33, 100, 10, WS_EX_LEFT
+        LTEXT           "Static", IDC_CONTRAST_TEXT, 164, 33, 18, 9, SS_LEFT, WS_EX_LEFT
+        LTEXT           "Static", IDC_BRIGHTNESS_TEXT, 164, 20, 18, 9, SS_LEFT, WS_EX_LEFT
+        CONTROL         "", IDC_BRIGHTNESS, TRACKBAR_CLASS, WS_TABSTOP | TBS_BOTH | TBS_NOTICKS, 56, 20, 100, 10, WS_EX_LEFT
+        LTEXT           "Brightness", -1, 17, 20, 33, 9, SS_LEFT, WS_EX_LEFT
+        GROUPBOX        "Image", -1, 8, 156, 180, 33, 0, WS_EX_LEFT
+        AUTOCHECKBOX    "Flip", IDC_FLIP, 18, 171, 26, 8, 0, WS_EX_LEFT
+        AUTOCHECKBOX    "Mirror", IDC_MIRROR, 47, 171, 34, 8, 0, WS_EX_LEFT
+        AUTOCHECKBOX    "Swap", IDC_SWAP, 84, 171, 32, 8, 0, WS_EX_LEFT
+        PUSHBUTTON      "Restore", IDC_RESTORE, 37, 197, 30, 14, 0, WS_EX_LEFT
+        PUSHBUTTON      "Reset", IDC_RESET, 68, 197, 30, 14, 0, WS_EX_LEFT
+        PUSHBUTTON      "OK", IDOK, 99, 197, 30, 14, 0, WS_EX_LEFT
+        PUSHBUTTON      "Cancel", IDCANCEL, 130, 197, 30, 14, 0, WS_EX_LEFT
+
+}
+
+
 //
 // Icon resources
 //
 LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
 IDI_SPOUTICON      ICON           "spout.ico"
 
-
 //
 // Version Information resources
 //
 LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 VS_VERSION_INFO VERSIONINFO
-    FILEVERSION     2,0,0,1
-    PRODUCTVERSION  2,0,0,1
+    FILEVERSION     2,0,0,2
+    PRODUCTVERSION  2,0,0,2
     FILEOS          VOS_NT
     FILETYPE        VFT_APP
     FILESUBTYPE     VFT2_UNKNOWN
@@ -64,12 +106,12 @@ VS_VERSION_INFO VERSIONINFO
         {
             VALUE "CompanyName", "Leading Edge Pty. Ltd.\0"
             VALUE "FileDescription", "Spout Video Player\0"
-            VALUE "FileVersion", "2.001\0"
+            VALUE "FileVersion", "2.002\0"
             VALUE "InternalName", "Spout  Video Player\0"
-            VALUE "LegalCopyright", "Copyright \251 2020-2023 Leading Edge Pty. Ltd.\0"
+            VALUE "LegalCopyright", "Copyright \251 2020-2024 Leading Edge Pty. Ltd.\0"
             VALUE "OriginalFilename", "Spout Video Player.exe\0"
             VALUE "ProductName", "Spout Video Player\0"
-            VALUE "ProductVersion", "2.001\0"
+            VALUE "ProductVersion", "2.002\0"
         }
     }
     BLOCK "VarFileInfo"
