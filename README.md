@@ -1,54 +1,48 @@
-# SpoutVideoPlayer
-An Openframeworks video player for Spout and NDI output
+# SpoutVideoAudio
 
-SpoutVideoPlayer is a simple video player for Spout and NDI output. The output can be received into any Spout enabled application and by applications supporting the Newtek NDI protocol for sharing data over a network.
+A version  of SpoutVideoPlayer using FFmpeg instead of the Openframeworks ofVideoPlayer class.
 
-### The project depends on :
+This project started as an example for the Spout SDK, but has been extended to create a \
+practical video player. Due to the additional complexity, the project is hosted as a branch \
+of "Spout Video Player" rather than example code within the Spout SDK.
 
-ofxWinMenu - https://github.com/leadedge/ofxWinMenu \
-ofxNDI - https://github.com/leadedge/ofxNDI
+Two pipes are created, one for video and the other for audio. This is a simple method compared\
+to using FFmpeg libraries and supports alpha channel transparency if the video file encoder\
+supports it, such as VP9, HapAlpha and ProRes4444.
 
-The project files are for Visual Studio 2022
+ofSoundStream and audioOut enable sound output and Draw is kept in sync with audio by timing\
+and and frame count matching. Seeking is achieved by specifying the start time for pipe read.\
+Performance varies depending on the encoder used for the video.
+	
+Uses the ofxWinMenu addon https://github.com/leadedge/ofxWinMenu to create a menu and manage\
+caption mouse press and the ofxWinDialog addon https://github.com/leadedge/ofxWinDialog \
+to create an image adjust dialog. The source is included within this project for convenience.\
+The project also uses a static library for Spout functions.
 
-Spout - https://github.com/leadedge/Spout2 \
-NDI - http://NDI.NewTek.com 
+The code can be used for reference :
 
-Refer to the ofxNDI addon for further information concerning NDI.
+- ofxWinMenu to create a window menu
+- ofxWinDialog to create a dialog
+- Compute shaders for image adjust
+- Setting an icon from a Windows dll
+- Detecting non-client area mouse press
+- Preview and full screen by changing window style and size
+- FFprobe to read video file details
+- FFmpeg with two pipes to decode video and audio frames
+- Fps control using HoldFps
+- Sync video with audio using audio timing and frame matching
+- Openframeworks dragEvent for drag and drop
+- Openframeworks soundstream and audioOut
+- Video duration, frame counter and progress bar
+- Draw and position ofTrueTypeFont text
+- Using a Spout static library generated using Cmake
+- SetSenderName, SendImage, LoadTexturePixels and ReleaseSender
+- Utility OpenSpoutConsole and SpoutMessageBox functions
 
-### How to use :
+FFmpeg.exe and FFprobe.exe are required. Refer to data/ffmpeg/readme.md
 
-Mouse control :\
-&nbsp;&nbsp;&nbsp;&nbsp;RH click central part of window - show / hide controls\
-&nbsp;&nbsp;&nbsp;&nbsp;RH click volume - mute\
-&nbsp;&nbsp;&nbsp;&nbsp;LH click volume - adjust\
-&nbsp;&nbsp;&nbsp;&nbsp;"<"&nbsp;&nbsp; - back one frame if paused\
-&nbsp;&nbsp;&nbsp;&nbsp;">"&nbsp;&nbsp; - forward one frame if paused\
-&nbsp;&nbsp;&nbsp;&nbsp;"<<" - back 8 frames if paused\
-&nbsp;&nbsp;&nbsp;&nbsp;">>" - forward 8 frames if paused\
-\
-Keyboard :\
-&nbsp;&nbsp;&nbsp;&nbsp;SPACE	show / hide controls\
-&nbsp;&nbsp;&nbsp;&nbsp;'i'	- show / hide information\
-&nbsp;&nbsp;&nbsp;&nbsp;'p'	- play / pause\
-&nbsp;&nbsp;&nbsp;&nbsp;'m'	- toggle mute\
-&nbsp;&nbsp;&nbsp;&nbsp;LEFT/RIGHT - back/forward one frame\
-&nbsp;&nbsp;&nbsp;&nbsp;PGUP/PGDN -	back/forward 8 frames\
-&nbsp;&nbsp;&nbsp;&nbsp;HOME/END - start/end of video\
-&nbsp;&nbsp;&nbsp;&nbsp;'f' - toggle full screen\
-&nbsp;&nbsp;&nbsp;&nbsp;'ESC' - exit full screen
+Information on program functions is available in Help > About > Options.
 
-----------------------
-Credit for the icons and progress bar - https://github.com/ACMILabs/mini-vod
-The MIT License (MIT)
-Copyright (c) 2016 the Australian Centre for the Moving Image (ACMI)
-
-----------------------
-NDI SDK - Copyright NewTek Inc. [https://www.ndi.tv/](https://www.ndi.tv/).
-
-A license agreement is included with the Newtek SDK when you receive it after registration with NewTek.
-The SDK is used by you in accordance with the license you accepted by clicking "accept" during installation. This license is available for review from the root of the SDK folder.
-Read the conditions carefully. You can include the NDI dlls as part of your own application, but the Newtek SDK and specfic SDK's which may be contained within it may not be re-distributed.
-Your own EULA must cover the specific requirements of the NDI SDK EULA.
 
 
 
