@@ -1,26 +1,5 @@
-// To avoid Openframeworks warning
-// "Boost.Config is older than your compiler version"
-#define BOOST_CONFIG_SUPPRESS_OUTDATED_MESSAGE
-
 #include "ofMain.h"
 #include "ofApp.h"
-
-/*
-	=========================================================================
-	This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Lesser General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Lesser General Public License for more details.
-
-    You should have received a copy of the GNU Lesser General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-	=========================================================================
-*/
 
 //--------------------------------------------------------------
 // to change options for console window (Visual Studio)
@@ -41,15 +20,15 @@
 //========================================================================
 int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPSTR lpCmdLine, _In_ int nShowCmd) {
 
-    ofSetupOpenGL(800, 450, OF_WINDOW); // <-------- setup the GL context
-	// this kicks off the running of my app
-	// can be OF_WINDOW or OF_FULLSCREEN
-	// pass in width and height too:
-	// ofRunApp( new ofApp());
+	//Use ofGLFWWindowSettings for more options like multi-monitor fullscreen
+	ofGLWindowSettings settings;
+	settings.setSize(640, 360);
+	settings.windowMode = OF_WINDOW; //can also be OF_FULLSCREEN
 
-    // Allow for app lpCmdLine
-    ofApp* app = new ofApp();
-    app->lpCmdLine = lpCmdLine;
-    ofRunApp(app); // start the app
+	auto window = ofCreateWindow(settings);
+
+	ofRunApp(window, std::make_shared<ofApp>());
+	ofRunMainLoop();
+
 
 }

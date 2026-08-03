@@ -1,246 +1,173 @@
 /*
 
-	ofApp.h
+	Spout OpenFrameworks Video/Audio Sender example
 
-	Spout Video Player
-
-	A simple video player with Spout and NDI output
-
-	Copyright (C) 2017-2022 Lynn Jarvis.
+	Copyright (C) 2026 Lynn Jarvis.
 
 	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU Lesser General Public License as published by
-	the Free Software Foundation, either version 3 of the License, or
-	(at your option) any later version.
+    it under the terms of the GNU Lesser General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU Lesser General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
 
-	You should have received a copy of the GNU Lesser General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU Lesser General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 #pragma once
 
-// To avoid Openframeworks warning
-#define BOOST_CONFIG_SUPPRESS_OUTDATED_MESSAGE
-
 #include "ofMain.h"
-#include "SpoutLibrary.h" // For Spout functions
-#include "ofxWinMenu.h" // Addon for a windows style menu
-#include "ofxNDI.h" // Addon for NDI streaming
-#include "SpoutGL\SpoutShaders.h" // For image adjust
-#include "resource.h"
-#include <shlwapi.h>  // for path functions
-#include <Shellapi.h> // for shellexecute
-#pragma comment(lib, "shlwapi.lib")  // for path functions
-#pragma comment(lib, "Version.lib") // for GetFileVersionInfo
+#include "addons/ofxWinMenu/src/ofxWinMenu.h" // Windows menu
+#include "addons/ofxWinDialog/src/ofxWinDialog.h" // Adjust dialog
+#include "SpoutShaders.h" // Compute shaders
+#include "../libs/include/Spout.h" // For Spout library
+#include <format> // for time display
+#include <commdlg.h> // for OPENFILENAME
 
-class ofApp : public ofBaseApp {
-public:
-	void setup();
-	void update();
-	void draw();
-	
-	void exit();
+// Spout library (/MD build)
+#pragma comment (lib, "libs/Spout_static.lib")
 
-	void windowResized(int w, int h);
-	void keyPressed(int key);
-	void mousePressed(int x, int y, int button);
-	void mouseMoved(int x, int y);
-	void dragEvent(ofDragInfo dragInfo);
+class ofApp : public ofBaseApp{
+	public:
+		void setup();
+		void update();
+		void draw();
+		void exit();
+		void keyPressed(int key);
+		void mousePressed(int x, int y, int button);
+		void mouseMoved(int x, int y);
+		void dragEvent(ofDragInfo dragInfo);
+		void audioOut(ofSoundBuffer &buffer);
 
-	// Spout
-	SPOUTLIBRARY* spoutsender = nullptr; // Sender object
-	char sendername[256]{}; // Sender name
-	bool bSpoutOut = true;
-	bool bInitialized = false; // Initialization result
+		ofTexture readTexture; // Read texture
+		ofTexture myTexture; // Draw texture
+		ofSoundStream soundStream; // To get sound to the speakers
+		ofTrueTypeFont myFont;
 
-	// NDI
-	ofxNDIsender NDIsender;
-	char NDIsendername[256]{};
-	bool bNDIout = false;
-	bool bNDIasync = false;
-	bool bNDIinitialized = false;
+		// Menu
+		HINSTANCE m_hInstance = nullptr;
+		HWND m_hWnd = nullptr;
+		HICON m_hIcon = nullptr;
+		ofxWinMenu* menu = nullptr; // Menu object
+		void appMenuFunction(std::string title, bool bChecked); // Menu callback function
+		bool bMute = false;
+		bool bScale = true;
+		bool bPaused = false;
+		bool bRestart = false;
+		bool bStop = false;
+		bool bTopmost = false;
+		bool bFullScreen = false;
+		bool bPreview = false;
+		bool bShowInfo = true;
 
-	// Shaders
-	spoutShaders shaders;
+		// Sender
+		Spout sender;  // Sender object
+		char m_SenderName[256]{}; // Sender name
+		unsigned int m_SenderWidth = 1280; // Sender width (video width)
+		unsigned int m_SenderHeight = 720; // Sender height (video height)
 
-	// For the Adjust dialog
-	float Brightness = 0.0;
-	float Contrast   = 1.0;
-	float Saturation = 1.0;
-	float Gamma      = 1.0;
-	float Blur       = 0.0;
-	float Sharpness  = 0.0;
-	float Sharpwidth = 3.0; // 3x3, 5x5, 7x7
-	bool bAdaptive   = false; // CAS adaptive sharpen
-	bool bFlip       = false;
-	bool bMirror     = false;
-	bool bSwap       = false;
-	bool bAlpha      = true; // TODO
-	// For cancel
-	float OldBrightness = 0.0;
-	float OldContrast   = 1.0;
-	float OldSaturation = 1.0;
-	float OldGamma      = 1.0;
-	float OldBlur       = 0.0;
-	float OldSharpness  = 0.0;
-	float OldSharpwidth = 3.0;
-	bool OldAdaptive    = false;
-	bool OldFlip        = false;
-	bool OldMirror      = false;
-	bool OldSwap        = false;
+		// FFmpeg
+		std::string m_exePath;           // Executable location
+		std::string m_ffmpegPath;        // FFmpeg location
 
-	// Window dimensions
-	float windowWidth = 0;
-	float windowHeight = 0;
+		// Video
+		std::string m_videopath;         // The full video path
+		double m_FrameRate = 30.0;       // Video frame rate
+		double m_Duration = 0.0;         // Video duration
+		long m_Frames = 0;               // Total number of frames
+		long m_FramesRead = 0;           // Number of frames read after pause
+		double m_progress = 0;           // Progress bar position
 
-	// Movie
-	ofVideoPlayer myMovie; // Movie to send
-	ofImage splashImage; // Startup splash image
-	string movieFile;
-	float movieWidth = 0;
-	float movieHeight = 0;
+		FILE *m_pipein = nullptr;        // Pipe for FFmpeg video
+		std::string m_codecName;         // Codec name
+		std::string m_input;             // Input string to FFmpeg video
+		unsigned char *m_pixelBuffer = nullptr; // RGBA pixel buffer
 
-	// icons and controlbar
-	ofImage icon_reverse;
-	ofImage	icon_fastforward;
-	ofImage	icon_play;
-	ofImage	icon_pause;
-	ofImage	icon_forward;
-	ofImage	icon_back;
-	ofImage	icon_stop;
-	ofImage	icon_full_screen;
-	ofImage	icon_sound;
-	ofImage	icon_mute;
+		// Audio
+		std::string m_audioInput;         // Input string to FFmpeg audio
+		FILE* m_audioPipe = nullptr;      // Audio pipe
+		float* m_audiodata = nullptr;     // Audio data
+		std::vector<int> m_audioSequence; // Sequence of sample numbers per frame
+		std::vector<char> m_audioBuffer;  // The audio buffer used in audioOut TODO
+		std::vector<int16_t> m_pcmBuffer; // PCM data buffer used in audioOut
+		int m_nChannels = 0;              // Number of channels (2 for stereo) 
+		int m_sampleRate = 0;             // Audio sample rate
+		int m_sampleIndex = 0;            // Sample index for this video frame
+		int m_nSamples = 0;               // Number of audio samples read
+		double m_frameSec = 0;            // Starting seconds for pipe
+		bool bReadVideo = true;           // Read the next video frame
 
-	// Things to display the icons
-	ofRectangle	icon_background;
-	float		icon_size = 0.0f;
-	float		icon_playpause_pos_x = 0.0f;
-	float		icon_playpause_pos_y = 0.0f;
-	bool		icon_playpause_hover =false;
-	float		icon_sound_pos_x = 0.0f;
-	float		icon_sound_pos_y = 0.0f;
-	bool		icon_sound_hover = false;
-	float		icon_fullscreen_pos_x = 0.0f;
-	float		icon_fullscreen_pos_y = 0.0f;
-	bool		icon_fullscreen_hover = false;
-	float		icon_forward_pos_x = 0.0f;
-	float		icon_forward_pos_y = 0.0f;
-	bool		icon_forward_hover = 0.0f;
-	float		icon_back_pos_x = 0.0f;
-	float		icon_back_pos_y = 0.0f;
-	bool		icon_back_hover = false;
+		// For audio pause with menu selection or title bar click
+		bool bNCmousePressed = false;
+		std::atomic<uint64_t> m_audioFramesPlayed = 0; // Audio frame counter
+		bool bVideoSync = false; // Syncing video with audio
 
-	float		icon_reverse_pos_x = 0.0f;;
-	float		icon_reverse_pos_y = 0.0f;;
-	bool		icon_reverse_hover = false;
+		bool OpenVideo(std::string filePath, double start = 0.0);  // Open a video with FFmpeg
+		bool OpenFFmpeg(std::string filePath, double start = 0.0); // Open FFmpeg video and audio pipes
+		void CloseFFmpeg();                         // Release FFmpeg resources
+		void RestartVideo(double startseconds = 0); // Close and restart
+		bool OpenSender();                          // Open sender
+		bool ffprobe(std::string filePath);         // Get video file information
+		void ResetWindow(int width, int height);    // Reset window size and position
+		void doTopmost(bool bTop);                  // Show topmost or not
+		void ShowInfo();                            // On-screen controls and progress bar
+		std::string ffdownloadstr(); // FFmpeg download string for messagebox
+		std::string EnterFileName(); // File dialog with more options that Openframeworks
+		void SaveImageFile(std::string name); // For Capture or Save as
 
-	float		icon_fastforward_pos_x = 0.0f;;
-	float		icon_fastforward_pos_y = 0.0f;;
-	bool		icon_fastforward_hover = false;
+		// Full screen
+		void doFullScreen(bool bEnable, bool bPreview = false);
+		HWND m_hWndForeground = nullptr;
+		HWND m_hwndTop = nullptr;
+		RECT m_windowRect{};
+		RECT m_clientRect{};
+		DWORD m_dwStyle = 0;
+		int m_AddX, m_AddY, m_nonFullScreenX, m_nonFullScreenY = 0;
 
-	float		icon_stop_pos_x = 0.0f;
-	float		icon_stop_pos_y = 0.0f;
-	bool		icon_stop_hover = false;
+		// icons
+		std::vector<ofImage> m_icons;
+		std::vector<ofColor> m_iconColor;
 
-	ofColor		icon_highlight_color;
-	ofColor		icon_background_color;
+		ofImage icon_reverse;     // 0
+		ofImage	icon_pause;       // 1
+		ofImage	icon_play;        // 2
+		ofImage	icon_stop;        // 3
+		ofImage	icon_fastforward; // 4
+		ofImage	icon_full_screen; // 5
+		ofImage	icon_sound;       // 6
+		ofImage	icon_mute;        // 7 
 
-	ofFbo iconFbo;
-	ofFbo myFbo;
+		// To display the icons
+		ofRectangle	icon_background;
+		float icon_size = 0.0f;
+		float icon_x = 0.0f;
+		float icon_y = 0.0f;
+		ofColor	icon_background_color;
+		ofColor	icon_highlight_color;
+		ofColor	icon_color;
 
-	// progress bar
-	ofRectangle	progress_bar;
-	ofRectangle	progress_bar_played;
-	float		controlbar_width = 0.0f;;
-	float		controlbar_height = 0.0f;;
-	float		controlbar_pos_y = 0.0f;;
-	float		controlbar_start_time = 0.0f;;
-	float		controlbar_timer_end = 0.0f;;
-	float		video_duration = 0.0f;;
-	float		video_percent_played = 0.0f;;
-	
-	// Movie control
-	bool OpenMovieFile(string filePath);
-	void CloseMovie();
-	bool bLoaded = false;
-	int nOldFrames = 0;
-	int nNewFrames = 0;
-	float movieVolume = 0.0f;
-	void setVideoPlaypause();
-	void HandleControlButtons(float x, float y, int button = 0);
-	void drawPlayBar();
-	void CloseVolume();
+		// Adjust dialog
+		ofxWinDialog* adjust;
+		HWND hwndAdjust = NULL;
+		void CreateAdjustDialog();
+		void AdjustCallback(string title, std::string text, int value);
+		spoutShaders shaders;
+		void ApplyShaders();
+		float Brightness  = 0.0; // -1 - 1
+		float Contrast    = 1.0; //  0 - 1
+		float Saturation  = 1.0; //  0 - 4
+		float Gamma       = 1.0; //  0 - 2
+		float Temp        = 6500.0; // daylight
+		float Sharpness   = 0.0;
+		float Sharpwidth  = 3.0; // 3x3, 5x5, 7x7 - 3, 5, 7
+		bool b3x3 = true; // Radio buttons
+		bool b5x5 = false;
+		bool b7x7 = false;
+		bool bAdaptive = false; // CAS adaptive sharpen
 
-	// Menu
-	ofxWinMenu* menu = nullptr; // Menu object
-	void appMenuFunction(string title, bool bChecked); // Menu callback function
-
-	// Flags
-	bool bSplash = true;
-	bool bShowControls = false;
-	bool bShowInfo = false;
-	bool bTopmost = false;
-	bool bMute = false;
-	bool bFullscreen = false;
-	bool bResizeWindow = false;
-	bool bPaused = false;
-	bool bLoop = false;
-	bool bStandard = false;
-	bool bMenuExit = false;
-	bool bMessageBox = false;
-	bool bMouseClicked = false;
-	bool bMouseExited = false;
-
-	// Utility
-	void doFullScreen(bool bFull);
-	void doTopmost(bool bTop);
-	void ResetWindow(bool bCentre = false);
-	void WriteInitFile(const char* initfile);
-	void ReadInitFile();
-
-	// Window
-	HWND     hWnd = NULL;              // Application window
-	HWND     hWndForeground = NULL;    // current foreground window
-	HWND     g_hWnd = NULL;            // global app winodw handlehandle to the OpenGL render window
-	GLint    glFormat = GL_RGBA;       // Default OpenGL texture format
-	char     g_InitFile[MAX_PATH]={0}; // Initfile
-
-	RECT     windowRect;      // Render window rectangle
-	RECT     clientRect;      // Render window client rectangle
-	LONG_PTR dwStyle = NULL;         // original window style
-	int      nonFullScreenX = 0;  // original window position
-	int      nonFullScreenY = 0;
-	unsigned int AddX, AddY = 0;      // adjustment to client rect for reset of window size
-
-	double TimeoutPeriod = 2000.0; // 2 seconds
-	double Timeout = 0.0;
-	double TimeoutStart = 0.0;
-	double TimeoutEnd = 0.0;
-	std::chrono::steady_clock::time_point start;
-	std::chrono::steady_clock::time_point end;
-
-
-	// For command line
-	LPSTR lpCmdLine = nullptr;
-	void ParseCommandLine(LPSTR lpCmdLine);
-	std::string FindArgString(std::string line, std::string arg);
-
-
-	int doMessageBox(HWND hwnd, LPCSTR message, LPCSTR caption, UINT uType);
-
-	ofTrueTypeFont myFont;
-	char info[1024]{}; // for info box
-
-	// For received frame fps calculations
-	double startTime, lastTime, frameTime, frameRate, fps = 0.0;
-
-	// For movie pause with menu selection or title bar click
-	bool bNCmousePressed = false;
 
 };

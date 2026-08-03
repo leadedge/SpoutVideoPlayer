@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="src\ofApp.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\main.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\SpoutShaders.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\addons\ofxWinDialog\src\ofxWinDialog.cpp">
+      <Filter>addons\ofxWinDialog\src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\addons\ofxWinMenu\src\ofxWinMenu.cpp">
+      <Filter>addons\ofxWinMenu\src</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="src">
+      <UniqueIdentifier>{d8376475-7454-4a24-b08a-aac121d3ad6f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="SpoutGL">
+      <UniqueIdentifier>{e338520b-70d2-4012-a70a-e0ca0c482222}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="addons">
+      <UniqueIdentifier>{006339ac-b71f-4b01-97dd-7ad06c765b31}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="addons\ofxWinMenu">
+      <UniqueIdentifier>{8c521cdd-fbee-480c-bfb8-5ccab51301ce}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="addons\ofxWinMenu\src">
+      <UniqueIdentifier>{65e89812-2ef9-4873-a961-3e37904bada4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="addons\ofxWinDialog">
+      <UniqueIdentifier>{77d982ed-719e-49d5-8a58-446a5329b14a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="addons\ofxWinDialog\src">
+      <UniqueIdentifier>{32a27867-3ddd-443c-be2e-84eb22f92a1b}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\ofApp.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\SpoutShaders.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\addons\ofxWinDialog\src\ofxWinDialog.h">
+      <Filter>addons\ofxWinDialog\src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\addons\ofxWinMenu\src\ofxWinMenu.h">
+      <Filter>addons\ofxWinMenu\src</Filter>
+    </ClInclude>
+    <ClInclude Include="libs\include\Spout.h">
+      <Filter>SpoutGL</Filter>
+    </ClInclude>
+    <ClInclude Include="libs\include\SpoutCommon.h">
+      <Filter>SpoutGL</Filter>
+    </ClInclude>
+    <ClInclude Include="libs\include\SpoutCopy.h">
+      <Filter>SpoutGL</Filter>
+    </ClInclude>
+    <ClInclude Include="libs\include\SpoutDirectX.h">
+      <Filter>SpoutGL</Filter>
+    </ClInclude>
+    <ClInclude Include="libs\include\SpoutFrameCount.h">
+      <Filter>SpoutGL</Filter>
+    </ClInclude>
+    <ClInclude Include="libs\include\SpoutGL.h">
+      <Filter>SpoutGL</Filter>
+    </ClInclude>
+    <ClInclude Include="libs\include\SpoutGLextensions.h">
+      <Filter>SpoutGL</Filter>
+    </ClInclude>
+    <ClInclude Include="libs\include\SpoutReceiver.h">
+      <Filter>SpoutGL</Filter>
+    </ClInclude>
+    <ClInclude Include="libs\include\SpoutSender.h">
+      <Filter>SpoutGL</Filter>
+    </ClInclude>
+    <ClInclude Include="libs\include\SpoutSenderNames.h">
+      <Filter>SpoutGL</Filter>
+    </ClInclude>
+    <ClInclude Include="libs\include\SpoutSharedMemory.h">
+      <Filter>SpoutGL</Filter>
+    </ClInclude>
+    <ClInclude Include="libs\include\SpoutUtils.h">
+      <Filter>SpoutGL</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="icon.rc" />
+  </ItemGroup>
+</Project>
