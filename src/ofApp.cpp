@@ -39,7 +39,7 @@
 	o Openframeworks soundstream and audioOut
 	o Video duration, frame counter and progress bar
 	o Draw and position ofTrueTypeFont text
- 	o Using a Spout static libary generated using Cmake
+ 	o Using a Spout static library generated using Cmake
 	o SetSenderName, SendImage, LoadTexturePixels and ReleaseSender
 	o Utility OpenSpoutConsole and SpoutMessageBox functions
     
@@ -295,10 +295,12 @@ void ofApp::draw()
 					myTexture.getTextureData().textureTarget,
 					m_SenderWidth, m_SenderHeight, false);
 		
-				bReadVideo = false; // Wait for audio
+				if(m_audioPipe)
+					bReadVideo = false; // Wait for audio
 			}
 			// Reset sync flag to play audio (set in RestartVideo)
-			bVideoSync = false;
+			if(m_audioPipe)
+				bVideoSync = false;
 		}
 	}
 	else if (myTexture.isAllocated()) {
@@ -324,7 +326,12 @@ void ofApp::draw()
 	// Lower the draw() cycle rate
 	// Set higher that the framerate from the
 	// video file that is used in audioOut
-	sender.HoldFps(m_FrameRate + 2);
+	// If no audio, hold the video frame rate
+	if(m_audioPipe)
+		sender.HoldFps(m_FrameRate + 2);
+	else
+		sender.HoldFps(m_FrameRate);
+
 
 }
 
@@ -373,9 +380,11 @@ void ofApp::ApplyShaders()
 void ofApp::audioOut(ofSoundBuffer &buffer)
 {
 	// Do not process audio for menu selection,
-	// mouse click on the caption, or if paused
-	if (bNCmousePressed || bPaused) {
-		buffer.set(0.0f); // silence
+	// mouse click on the caption, if paused
+	// or no audio in the video file
+	if (bNCmousePressed || bPaused || !m_audioPipe) {
+		if(buffer.size() > 0)
+			buffer.set(0.0f); // silence
 		return;
 	}
 
@@ -914,38 +923,43 @@ bool ofApp::OpenFFmpeg(std::string filePath, double seconds)
 		return false;
 	}
 
-	// Audio pipe
-	if (m_audioPipe) {
-		_pclose(m_audioPipe);
-		m_audioPipe = nullptr;
+	// Check for an audio stream returned by FFprobe
+	if (m_sampleRate > 0 && m_nChannels > 0) {
+
+		// Audio pipe
+		if (m_audioPipe) {
+			_pclose(m_audioPipe);
+			m_audioPipe = nullptr;
+		}
+
+		m_audioInput = m_ffmpegPath; // FFmpeg.exe path
+		// Seek audio to seconds
+		if (seconds > 0.0) {
+			m_audioInput += " -ss ";
+			m_audioInput += std::to_string(seconds);
+		}
+		// Quiet console output
+		m_audioInput += " -loglevel quiet";
+		m_audioInput += " -i ";
+		m_audioInput += "\"";
+		m_audioInput += filePath; // Video file path
+		m_audioInput += "\"";
+		// Output raw PCM
+		m_audioInput += " -f s16le";
+		m_audioInput += " -acodec pcm_s16le"; // PCM signed 16-bit little-endian
+		m_audioInput += " -ac ";
+		m_audioInput += std::to_string(m_nChannels); // Number of channels (2 = stereo)
+		m_audioInput += " -ar ";
+		m_audioInput += std::to_string(m_sampleRate);  // ouput sample rate e.g. 44100 Hz
+		m_audioInput += " -";
+		m_audioPipe = _popen(m_audioInput.c_str(), "rb");
 	}
 
-	m_audioInput = m_ffmpegPath; // FFmpeg.exe path
-	// Seek audio to seconds
-	if (seconds > 0.0) {
-		m_audioInput += " -ss ";
-		m_audioInput += std::to_string(seconds); 
-	}
-	// Quiet console output
-	m_audioInput += " -loglevel quiet";
-	m_audioInput += " -i ";
-	m_audioInput += "\"";
-	m_audioInput += filePath; // Video file path
-	m_audioInput += "\"";
-	// Output raw PCM
-	m_audioInput += " -f s16le";
-	m_audioInput += " -acodec pcm_s16le"; // PCM signed 16-bit little-endian
-	m_audioInput += " -ac ";
-	m_audioInput += std::to_string(m_nChannels); // Number of channels (2 = stereo)
-	m_audioInput += " -ar ";
-	m_audioInput += std::to_string(m_sampleRate);  // ouput sample rate e.g. 44100 Hz
-	m_audioInput += " -";
-	m_audioPipe = _popen(m_audioInput.c_str(), "rb");
-
-	if (m_pipein && m_audioPipe) {
+	if (m_pipein) {
 		m_videopath = filePath;
-		// Reset frame counters
+		// Reset video frame counter
 		m_FramesRead = 0;
+		// Reset audio frame counter
 		m_audioFramesPlayed = 0;
 		// Signal draw() to read video from the pipe
 		bReadVideo = true;
@@ -980,31 +994,37 @@ bool ofApp::OpenSender()
 	// Set up soundstream
 	soundStream.stop(); // Stop and close for repeats
 	soundStream.close();
-	ofSoundStreamSettings settings;
-	auto devices = soundStream.getDeviceList();
-	if (!devices.empty()) {
-		// Select the device number as required by the system
-		settings.setOutDevice(devices[0]); // Speakers
-		settings.setOutListener(this);
-		settings.sampleRate = m_sampleRate;
-		settings.numOutputChannels = m_nChannels;
-		settings.numInputChannels = 0;
-		settings.bufferSize = 1024; // Can be adjusted
-		if (soundStream.setup(settings)) {
-			// PCM data buffer used in audioOut
-			m_pcmBuffer.resize(settings.bufferSize*settings.numOutputChannels);
-			// printf("\nSoundstream setup\n");
-			// printf("  nSamples     = %d\n", soundStream.getBufferSize());
-			// printf("  Sample rate  = %d\n", soundStream.getSampleRate());
-			// printf("  N channels   = %d\n", soundStream.getNumOutputChannels());
+
+	// Set up soundstream if there is audio
+	if (m_audioPipe) {
+
+		ofSoundStreamSettings settings;
+		auto devices = soundStream.getDeviceList();
+		if (!devices.empty()) {
+			// Select the device number as required by the system
+			settings.setOutDevice(devices[0]); // Speakers
+			settings.setOutListener(this);
+			settings.sampleRate = m_sampleRate;
+			settings.numOutputChannels = m_nChannels;
+			settings.numInputChannels = 0;
+			settings.bufferSize = 1024; // Can be adjusted
+			if (soundStream.setup(settings)) {
+				// PCM data buffer used in audioOut
+				m_pcmBuffer.resize(settings.bufferSize * settings.numOutputChannels);
+				// printf("\nSoundstream setup\n");
+				// printf("  nSamples     = %d\n", soundStream.getBufferSize());
+				// printf("  Sample rate  = %d\n", soundStream.getSampleRate());
+				// printf("  N channels   = %d\n", soundStream.getNumOutputChannels());
+			}
+			else {
+				printf("OpenSender : Soundstream setup failed\n");
+				return false;
+			}
 		}
-		else {
-			printf("OpenSender : Soundstream setup failed\n");
-			return false;
-		}
-		// Allow audio and draw
-		bNCmousePressed = false;
 	}
+
+	// Allow audio and draw
+	bNCmousePressed = false;
 
 	return true;
 
