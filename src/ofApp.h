@@ -57,6 +57,7 @@ class ofApp : public ofBaseApp{
 		bool bMute = false;
 		bool bScale = true;
 		bool bPaused = false;
+		bool bPosition = false;
 		bool bRestart = false;
 		bool bStop = false;
 		bool bTopmost = false;

@@ -43,7 +43,7 @@
 	o SetSenderName, SendImage, LoadTexturePixels and ReleaseSender
 	o Utility OpenSpoutConsole and SpoutMessageBox functions
     
-	FFmpeg and FFprobe are required.
+	FFmpeg.exe and FFprobe.exe are required.
 	Refer to data/ffmpeg/readme.md
 
 	Copyright (C) 2026 Lynn Jarvis.
@@ -93,7 +93,7 @@ void ofApp::setup(){
 		// FFmpeg download instructions
 		// Keep the dialog open with "?noclose" in the url
 		// and topmost so that the instructions remain visible
-		// The ffdownloadstr() content string is re-used.
+		// (the ffdownloadstr() content string is re-used)
 		std::string str = "FFmpeg not found\n\n" + ffdownloadstr();
 		SpoutMessageBoxIconSmall();
 		SpoutMessageBox(NULL, str.c_str(), "FFmpeg", MB_ICONWARNING | MB_TOPMOST | MB_OK);
@@ -269,7 +269,8 @@ void ofApp::draw()
 	bNCmousePressed = false;
 
 	// Read a video frame from the FFmpeg input pipe
-	if(!bPaused) {
+	// if not paused or positioning
+	if(!bPaused || bPosition) {
 		if (m_pipein && m_pixelBuffer && m_SenderWidth > 0 && m_SenderHeight > 0) {
 			// audioOut signals to read the next frame based on the video frame rate
 			if (bReadVideo) {
@@ -284,7 +285,7 @@ void ofApp::draw()
 
 				// Load the read texture with pixels
 				sender.LoadTexturePixels(readTexture.getTextureData().textureID,
-					myTexture.getTextureData().textureTarget,
+					readTexture.getTextureData().textureTarget,
 					m_SenderWidth, m_SenderHeight, m_pixelBuffer, GL_BGRA);
 
 				// Activate shaders from the read texture to the draw texture
@@ -302,30 +303,32 @@ void ofApp::draw()
 			if(m_audioPipe)
 				bVideoSync = false;
 		}
+		// Clear positioning flag for progress bar or goto
+		bPosition = false;
 	}
 	else if (myTexture.isAllocated()) {
-		// Paused - activate shaders
+		// If paused, activate shaders on the same read texture
 		ApplyShaders();
 	}
 
 	// Do not draw if iconic
 	if (!IsIconic(ofGetWin32Window()) && myTexture.isAllocated()) {
-
 		// Draw the result fitted to the display window
 		// Adjust height from video aspect ratio
 		int width = ofGetWidth();
 		int height = width*m_SenderHeight/m_SenderWidth;
 		int ypos = (ofGetHeight()-height)/2;
 		myTexture.draw(0, ypos, width, height);
-
 		// Key shortcuts
 		if(bShowInfo)
 			ShowInfo();
 	}
 
+	//
 	// Lower the draw() cycle rate
-	// Set higher that the framerate from the
-	// video file that is used in audioOut
+	//
+	// For audio, set higher that the framerate
+	// of the video file used in audioOut
 	// If no audio, hold the video frame rate
 	if(m_audioPipe)
 		sender.HoldFps(m_FrameRate + 2);
@@ -344,7 +347,7 @@ void ofApp::ApplyShaders()
 	unsigned int height = (unsigned int)myTexture.getHeight();
 
 	// Temperature : 3500 - 9500  (default 6500 daylight)
-	// Apply first to copy from read to the draw texture
+	// Apply first to copy from the read texture to the draw texture
 	shaders.Temperature(sourceID, textureID, width, height, Temp);
 
 	// Brightness    -1 - 1   default 0
@@ -380,8 +383,8 @@ void ofApp::ApplyShaders()
 void ofApp::audioOut(ofSoundBuffer &buffer)
 {
 	// Do not process audio for menu selection,
-	// mouse click on the caption, if paused
-	// or no audio in the video file
+	// mouse click on the caption, or if paused
+	// or if no audio in the video file
 	if (bNCmousePressed || bPaused || !m_audioPipe) {
 		if(buffer.size() > 0)
 			buffer.set(0.0f); // silence
@@ -404,7 +407,8 @@ void ofApp::audioOut(ofSoundBuffer &buffer)
 			return;
 		}
 		else if (bytesRead > 0) {
-			// The required video frame based on audio time
+			// Sync video with audio
+			// Calculate the required video frame based on audio time
 			double audioTime = (double)m_audioFramesPlayed.load()/m_sampleRate;
 			long requiredFrame = (int)(audioTime*m_FrameRate);
 			if (requiredFrame > m_FramesRead) {
@@ -487,8 +491,10 @@ void ofApp::keyPressed(int key)
 		// Update "Go to" time
 		m_frameSec = m_progress*m_Duration;
 		// Handle menu item
-		if(bPaused)	menu->EnablePopupItem("Go to 'g'", true);
-		else menu->EnablePopupItem("Go to 'g'", false);
+		if (bPaused)
+			menu->EnablePopupItem("Go to 'g'", true);
+		else
+			menu->EnablePopupItem("Go to 'g'", false);
 	}
 
 	// m - Mute
@@ -499,41 +505,32 @@ void ofApp::keyPressed(int key)
 
 	// g - Go to
 	if (key == 'g' || key == 'G') {
+		// Only enabled if paused
 		if (menu->GetEnabled("Go to 'g'")) {
 			if (m_frameSec > 0.0) {
 				std::string str = "Enter the seconds to go to\n";
 				str += "Current time is ";
 				str += std::format("{:.2f}", m_frameSec);
 				str += " seconds";
-				
-				// str += " seconds\n";
-				// int hrs  = (int)(round(m_frameSec/3600.0));
-				// int mins = (int)(round(m_frameSec/60.0))-hrs*60;
-				// // double secs = m_frameSec - (double)(hrs*3600+mins*60);
-				// int secs = (int)round(m_frameSec) - (hrs*3600+mins*60);
-				// // std::string time = std::format("{:02}:{:02}:{:04.2f}", hrs, mins, secs);
-				// std::string time = std::format("{:02}:{:02}:{:02}", hrs, mins, secs);
-				// str += time;
-				
 				std::string text;
 				if (SpoutMessageBox(m_hWnd, str.c_str(), "Go to", MB_OKCANCEL, text) == IDOK) {
 					if (!text.empty()) {
 						double time = atof(text.c_str());
-						// Audio waits for draw to produce a frame
 						if (time < m_Duration) {
-							bool paused = bPaused;
 							m_progress = time / m_Duration;
-							// Back up one frame time
-							// to allow for reading from the pipe again
-							// 30 frames per second - 1 frame = 1/30 seconds
-							time -= 1.0 / (double)m_FrameRate;
 							RestartVideo(time);
-							// Draw the selected frame
-							if (paused) {
-								// Back up the progress bar counter
-								m_progress -= 1.0 / (double)m_Frames;
-								draw(); // Draw increments progress again
-								bPaused = paused;
+							if (bPaused) {
+								// Read the next frame and load the read texture with pixels
+								if (m_pipein && m_pixelBuffer && m_SenderWidth > 0 && m_SenderHeight > 0) {
+									if (fread(m_pixelBuffer, 1, m_SenderWidth * m_SenderHeight * 4, m_pipein)) {
+										sender.LoadTexturePixels(readTexture.getTextureData().textureID,
+											readTexture.getTextureData().textureTarget,
+											m_SenderWidth, m_SenderHeight, m_pixelBuffer, GL_BGRA);
+										// Draw the frame
+										bPosition = true;
+										bReadVideo = true;
+									}
+								}
 							}
 						}
 						else {
@@ -582,13 +579,28 @@ void ofApp::keyPressed(int key)
 
 	// r - Restart the same video
 	if (key == 'r' || key == 'R') {
-		RestartVideo();
+		if (bPaused) {
+			// Mouse press at the start of the progess bar
+			mousePressed(1, ofGetHeight()-15, 0);
+		}
+		else {
+			RestartVideo();
+		}
 	}
 
 	// e - End of the video
 	if (key == 'e' || key == 'E') {
-		// Same behaviour as VLC - starts again
-		RestartVideo();
+		if (bPaused) {
+			// Mouse press at the end of the progess bar
+			double width = (double)ofGetWidth();
+			double interval = width/m_Duration;
+			int xpos = (int)(width-interval)+(int)interval-1;
+			mousePressed(xpos, ofGetHeight()-15, 0);
+		}
+		else {
+			// Same behaviour as VLC - starts again
+			RestartVideo();
+		}
 	}
 
 	// s - Stop and close video
@@ -632,16 +644,35 @@ void ofApp::mousePressed(int x, int y, int button)
 	if (y >= ypos && y < ypos+10) {
 		// X position in seconds
 		double position = (double)x*m_Duration/(double)ofGetWidth();
-		m_progress = position/m_Duration; // Progress bar position
-		bool paused = bPaused;
+		// Back up one frame time
+		// to allow for reading from the pipe again
+		// e.g. for 30 frames per second, 1 frame = 1/30 seconds
+		position -= 1.0/(double)m_FrameRate;
 		RestartVideo(position);
-		if(paused)
-			draw(); // Draw the frame
-		bPaused = paused;
-		// "Go to" time is updated in audioOut
+		if (bPaused) {
+			// Read the next frame and load the read texture with pixels
+			if (m_pipein && m_pixelBuffer && m_SenderWidth > 0 && m_SenderHeight > 0) {
+				if (fread(m_pixelBuffer, 1, m_SenderWidth * m_SenderHeight * 4, m_pipein)) {
+					sender.LoadTexturePixels(readTexture.getTextureData().textureID,
+						readTexture.getTextureData().textureTarget,
+						m_SenderWidth, m_SenderHeight, m_pixelBuffer, GL_BGRA);
+					// Draw the frame
+					bPosition = true;
+					bReadVideo = true;
+				}
+			}
+		}
+		else {
+			// Signal draw to read straight away
+			bReadVideo = true;
+		}
+
+		// "Go to" time is updated in RestartVideo and audioOut
 		// Handle menu item
-		if(bPaused)	menu->EnablePopupItem("Go to 'g'", true);
-		else menu->EnablePopupItem("Go to 'g'", false);
+		if (bPaused)
+			menu->EnablePopupItem("Go to 'g'", true);
+		else
+			menu->EnablePopupItem("Go to 'g'", false);
 	}
 
 	// Mouse press on icons
@@ -672,7 +703,7 @@ void ofApp::mousePressed(int x, int y, int button)
 		keyPressed('s');
 	}
 
-	// 4 - forward
+	// 4 - fast forward
 	xpos += icon_size*1.1;
 	if (x > xpos && x <= (xpos + icon_size)
 	&& y > ypos && y <= (ypos + icon_size)) {
@@ -806,8 +837,6 @@ bool ofApp::OpenVideo(std::string filePath, double seconds)
 	}
 
 	//
-	// Open an input pipe from ffmpeg
-	//
 	// _popen for FFmpeg and FFprobe will open a console window.
 	// To hide the output, open a console first and then hide it.
 	// An application can have only one console window.
@@ -856,7 +885,6 @@ bool ofApp::OpenFFmpeg(std::string filePath, double seconds)
 	// Input seeking : -ss before -i
 	// HH:MM:SS.Msec (e.g. 01:23:45.678)
 	// FFmpeg starts at the requested timestamp.
-	//
 	if (seconds > 0.0) {
 		m_input += " -ss ";
 		int hrs  = (int)(seconds/3600.0);
@@ -882,8 +910,8 @@ bool ofApp::OpenFFmpeg(std::string filePath, double seconds)
 	m_input += filePath;
 	m_input += "\"";
 	// 60 fps can be too high for FFmpeg pipe read
-	// Reduce frame rate here independent of global rate
-	// FFmpeg will drop frames
+	// so reduce the frame rate here.
+	// FFmpeg will drop frames if the video file frame rate is higher
 	double frate = m_FrameRate;
 	if (frate > 30.0) {
 		frate = 30.0;
@@ -895,7 +923,7 @@ bool ofApp::OpenFFmpeg(std::string filePath, double seconds)
 	//
 	// FFmpeg pipe read (fread) may be too slow with large image data
 	// (typically 10-14 msec at 1920x1080, 3-4 msec at 1280x720)
-	// and audio can drift out of sync. Reduce output width to 1280
+	// and audio can drift out of sync. Reduce the output width to 1280
 	// while preserving aspect ratio
 	//
 	if (bScale) { // Resize menu option
@@ -964,8 +992,10 @@ bool ofApp::OpenFFmpeg(std::string filePath, double seconds)
 		// Signal draw() to read video from the pipe
 		bReadVideo = true;
 		// Handle menu items
-		if(bPaused)	menu->EnablePopupItem("Go to 'g'", true);
-		else menu->EnablePopupItem("Go to 'g'", false);
+		if (bPaused)
+			menu->EnablePopupItem("Go to 'g'", true);
+		else
+			menu->EnablePopupItem("Go to 'g'", false);
 		menu->EnablePopupItem("Adjust 'a'", true);
 		menu->EnablePopupItem("Copy 'c'", true);
 		menu->EnablePopupItem("Capture", true);
@@ -1046,33 +1076,36 @@ void ofApp::CloseFFmpeg()
 	}
 	m_audioPipe = nullptr;
 	// Handle menu items
-	if(bPaused)	menu->EnablePopupItem("Go to 'g'", true);
-	else menu->EnablePopupItem("Go to 'g'", false);
+	if (bPaused)
+		menu->EnablePopupItem("Go to 'g'", true);
+	else
+		menu->EnablePopupItem("Go to 'g'", false);
 	menu->EnablePopupItem("Adjust 'a'", false);
 	menu->EnablePopupItem("Copy 'c'", false);
 	menu->EnablePopupItem("Capture", false);
 	menu->EnablePopupItem("Save as", false);
 }
 
-
 //--------------------------------------------------------------
-// Close and restart at startseconds
-// using the same video file
+// Close and restart at startseconds using the same video file
 void ofApp::RestartVideo(double startseconds)
 {
+	// Do not cancel paused to allow positioning
+	// by click on the control bar or "Go to".
+
 	// No audio while syncing video (reset in draw)
 	bVideoSync = true;
 	// Stop audio (reset in draw)
 	bNCmousePressed = true; // Reset in Draw
-	// Cancel paused
-	bPaused = false;
 	// Stop soundstream
-	soundStream.stop();
+	if(m_audioPipe)
+		soundStream.stop();
 	// Release FFmpeg resources
 	CloseFFmpeg();
 	// Start again at startseconds
 	OpenFFmpeg(m_videopath, startseconds);
-	soundStream.start();
+	if(m_audioPipe)
+		soundStream.start();
 	// Update progress bar position
 	m_progress = startseconds/m_Duration; // Progress position
 }
@@ -1262,11 +1295,11 @@ void ofApp::appMenuFunction(string title, bool bChecked)
 		about += "\n\n";
 
 		about += "      An example of a sender for video files using FFmpeg with\n";
-		about += "      two pipes, one for video and the second for audio.\n\n";
+		about += "      two pipes, one for video and the other for audio.\n\n";
 		about += "      ofSoundStream and audioOut enable sound output and Draw is\n";
 		about += "      kept in sync with audio by timing and and frame count matching.\n";
 		about += "      This is a simple method compared to using FFmpeg libraries.\n";
-		about += "      Seeking is achieved by specifying the start time for pipe read.\n";
+		about += "      Seeking is achieved by specifying the start time for video pipe read.\n";
 		about += "      Performance varies depending on the encoder used for the video.\n\n";
 
 		about += "      Uses the <a href=\"https://github.com/leadedge/ofxWinMenu\">ofxWinMenu</a> addon to create a menu and to manage\n";
@@ -1544,11 +1577,10 @@ bool ofApp::ffprobe(std::string videoPath)
 					m_SenderHeight = atoi(tmp);
 				if (GetPrivateProfileStringA((LPCSTR)stream, (LPSTR)"duration", NULL, (LPSTR)tmp, 10, initfile) > 0)
 					m_Duration = atof(tmp);
-
 				// Duration is in seconds
-				// N/A - try tags
+				// If N/A - try tags
 				if (strcmp(tmp, "N/A") == 0) {
-					// Try [streams.stream.0.tags]
+					// [streams.stream.0.tags]
 					// DURATION=00\:55\:15.314000000
 					if (GetPrivateProfileStringA((LPCSTR)"streams.stream.0.tags", (LPSTR)"DURATION", (LPSTR)"-1", (LPSTR)tmp, MAX_PATH, initfile) > 0) {
 						// Remove FFprobe escaping: "\:" -> ":"
@@ -1569,10 +1601,9 @@ bool ofApp::ffprobe(std::string videoPath)
 						m_Duration = (hrs*3600.0+mins*60.0+secs);
 					}
 				}
-
 				// Total number of frames
 				if (m_Duration > 0.0 && m_FrameRate > 0.0) {
-					m_Frames = (long)(m_Duration * m_FrameRate);
+					m_Frames = (long)(m_Duration*m_FrameRate);
 				}
 
 				dwResult = GetPrivateProfileStringA((LPCSTR)"streams.stream.0", (LPSTR)"r_frame_rate", (LPSTR)"30/1", (LPSTR)tmp, 11, initfile);
@@ -1619,7 +1650,7 @@ bool ofApp::ffprobe(std::string videoPath)
 }
 
 //--------------------------------------------------------------
-// Reset window size
+// Reset the window size
 void ofApp::ResetWindow(int windowWidth, int windowHeight)
 {
 	// Adjust window to desired client size allowing for the menu
@@ -1646,6 +1677,7 @@ void ofApp::ResetWindow(int windowWidth, int windowHeight)
 }
 
 //--------------------------------------------------------------
+// Keep topmost
 void ofApp::doTopmost(bool bTop)
 {
 	if (bTop) {
@@ -1665,6 +1697,7 @@ void ofApp::doTopmost(bool bTop)
 } // end doTopmost
 
 //--------------------------------------------------------------
+// Full screen or preview
 void ofApp::doFullScreen(bool bEnable, bool bPreviewMode)
 {
 	char tmp[256]={};
@@ -1805,6 +1838,7 @@ void ofApp::doFullScreen(bool bEnable, bool bPreviewMode)
 }
 
 //--------------------------------------------------------------
+// Show controls, progress bar, frame and total time
 void ofApp::ShowInfo()
 {
 	// Progress bar
@@ -1865,10 +1899,10 @@ void ofApp::ShowInfo()
 
 	}
 
-	std::string totaltime = std::format("{:02}:{:02}", (int)(round(m_Duration/60.0)), (int)(std::fmod(m_Duration, 60)));
+	std::string totaltime = std::format("{:02}:{:02}", (int)(m_Duration/60.0), (int)(std::fmod(m_Duration, 60)));
 	if (!totaltime.empty()) {
 		double framesec = m_Duration*m_progress;
-		std::string frametime = std::format("{:02}:{:02}", (int)(round(framesec/60.0)), (int)(std::fmod(framesec, 60)));
+		std::string frametime = std::format("{:02}:{:02}", (int)(framesec/60.0), (int)(std::fmod(framesec, 60)));
 		std::string str = frametime + " of " + totaltime;
 		int strwidth = myFont.stringWidth(str);
 		int xpos = ofGetWidth() - strwidth-10;
@@ -1933,6 +1967,7 @@ std::string ofApp::EnterFileName()
 	return fileName;
 
 }
+
 //--------------------------------------------------------------
 void ofApp::SaveImageFile(std::string name)
 {
