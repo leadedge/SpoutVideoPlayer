@@ -6,7 +6,7 @@ This project started as an example for the Spout SDK, but has been extended to c
 practical video player. Due to the additional complexity, the project is hosted as a branch \
 of "Spout Video Player" rather than example code within the Spout SDK.
 
-Two pipes are created, one for video and the other for audio. This is a simple method compared\
+Two pipes are created, one for video and the other for audio. This is a simple method compared \
 to using FFmpeg libraries and supports alpha channel transparency if the video file encoder\
 supports it, such as VP9, HapAlpha and ProRes4444.
 
