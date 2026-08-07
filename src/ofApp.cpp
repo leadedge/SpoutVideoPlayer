@@ -46,6 +46,15 @@
 	FFmpeg.exe and FFprobe.exe are required.
 	Refer to data/ffmpeg/readme.md
 
+	04.08.26 - Publish in SpoutVideoPlayer FFmpeg branch
+			   First release 3.0.0.0
+	06.08.26 - Change from plain to to Control keys
+	07.08.26 - Change player control and icon names
+			   Add Help > Options menu item
+			   Save/restore item states in a menu initialization file
+			   Add SetExplorerTopmost to show video and image folders
+			   Release update
+
 	Copyright (C) 2026 Lynn Jarvis.
 
 	=========================================================================
@@ -151,24 +160,33 @@ void ofApp::setup(){
 
 	// Output popup
 	hPopup = menu->AddPopupMenu(hMenu, "Output");
-	menu->AddPopupItem(hPopup, "Adjust 'a'", false, false);
-	menu->AddPopupItem(hPopup, "Go to 'g'", false, false);
-	menu->AddPopupItem(hPopup, "Copy 'c'", false, false);
-	menu->AddPopupItem(hPopup, "Capture", false, false);
-	menu->AddPopupItem(hPopup, "Save as", false, false);
-	menu->AddPopupItem(hPopup, "Mute 'm'", bMute);
+	menu->AddPopupItem(hPopup, "Adjust", false, false);
+	bScale = true;
 	menu->AddPopupItem(hPopup, "Resize", bScale);
+	menu->AddPopupSeparator(hPopup);
+	menu->AddPopupItem(hPopup, "Copy	Ctrl-O", false, false); // Copy
+	menu->AddPopupItem(hPopup, "Capture	Ctrl-A", false, false); // Capture
+	menu->AddPopupItem(hPopup, "Save	Ctrl-S", false, false); // Save
+	menu->AddPopupSeparator(hPopup);
+	menu->AddPopupItem(hPopup, "Go to	Ctrl-G", false, false); // Go to
+	bMute = false;
+	menu->AddPopupItem(hPopup, "Mute	Ctrl-M", bMute); // Mute
 
 	// View popup
 	hPopup = menu->AddPopupMenu(hMenu, "View");
-	menu->AddPopupItem(hPopup, "Show on top", bTopmost);
-	menu->AddPopupItem(hPopup, "Show controls - Space", bShowInfo);
-	menu->AddPopupItem(hPopup, "Preview 'v'", false, false); // Unchecked, no auto-check
-	menu->AddPopupItem(hPopup, "Full screen 'f'", false, false); // No autocheck
+	bShowInfo = true;
+	menu->AddPopupItem(hPopup, "Show controls	Space", bShowInfo);
+	bPreview = false;
+	menu->AddPopupItem(hPopup, "Preview	Ctrl-V", false, false); // Unchecked, no auto-check
+	bFullScreen = false;
+	menu->AddPopupItem(hPopup, "Full screen	Ctrl-F", false, false); // No autocheck
+	bTopmost = false;
+	menu->AddPopupItem(hPopup, "Show on top	Ctrl-T", bTopmost);
 
 	// Help popup
 	hPopup = menu->AddPopupMenu(hMenu, "Help");
-	menu->AddPopupItem(hPopup, "About", false, false); // No auto check
+	menu->AddPopupItem(hPopup, "Options", false, false); // No auto check
+	menu->AddPopupItem(hPopup, "About", false, false);
 
 	// Load previous menu settings
 	// after the menu items are established
@@ -184,7 +202,7 @@ void ofApp::setup(){
 	//
 	// Image adjust dialog
 	//
-	adjust = new ofxWinDialog(this, m_hInstance, m_hWnd, "Adjust 'a'");
+	adjust = new ofxWinDialog(this, m_hInstance, m_hWnd, "Adjust");
 	adjust->SetIcon(m_hIcon);
 	adjust->SetFont("Segoe UI", 9);
 	adjust->AppDialogFunction(&ofApp::AdjustCallback);
@@ -198,30 +216,30 @@ void ofApp::setup(){
 	//
 	// icons
 	//
-	icon_reverse.load("icons/reverse.png");
+	icon_begin.load("icons/begin.png");
 	icon_pause.load("icons/pause.png");
 	icon_play.load("icons/play.png");
-	icon_stop.load("icons/stop.png");
-	icon_fastforward.load("icons/fastforward.png");
+	icon_exit.load("icons/exit.png");
+	icon_end.load("icons/end.png");
 	icon_full_screen.load("icons/full_screen.png");
 	icon_sound.load("icons/speaker.png");
-	icon_mute.load("icons/speaker_mute.png");
+	icon_mute.load("icons/mute.png");
 
 	icon_size = 20;
-	icon_reverse.resize(icon_size, icon_size);
+	icon_begin.resize(icon_size, icon_size);
 	icon_pause.resize(icon_size, icon_size);
 	icon_play.resize(icon_size, icon_size);
-	icon_fastforward.resize(icon_size, icon_size);
-	icon_stop.resize(icon_size, icon_size);
+	icon_end.resize(icon_size, icon_size);
+	icon_exit.resize(icon_size, icon_size);
 	icon_full_screen.resize(icon_size, icon_size);
 	icon_sound.resize(icon_size, icon_size);
 	icon_mute.resize(icon_size, icon_size);
 
-	m_icons.push_back(icon_reverse);     // 0
+	m_icons.push_back(icon_begin);     // 0
 	m_icons.push_back(icon_pause);       // 1
 	m_icons.push_back(icon_play);        // 2
-	m_icons.push_back(icon_stop);        // 3
-	m_icons.push_back(icon_fastforward); // 4
+	m_icons.push_back(icon_exit);        // 3
+	m_icons.push_back(icon_end); // 4
 	m_icons.push_back(icon_full_screen); // 5
 	m_icons.push_back(icon_sound);       // 6
 	m_icons.push_back(icon_mute);        // 7 
@@ -232,6 +250,12 @@ void ofApp::setup(){
 	for (int i=0; i<(int)m_icons.size(); i++) {
 		m_iconColor.push_back(icon_background_color);
 	}
+
+	// To detect Control keys
+	// https://gist.github.com/stungeye/23580e5fef648e2798c069d9e7f83816
+	ofAddListener(ofGetWindowPtr()->events().keyPressed, this, &ofApp::keycodePressed);
+	m_ctrlkey.modifiers = OF_KEY_CONTROL; // For menu item and player keys
+
 
 }
 
@@ -445,6 +469,10 @@ void ofApp::audioOut(ofSoundBuffer &buffer)
 //--------------------------------------------------------------
 void ofApp::exit()
 {
+	// Save adjust settings
+	adjust->GetControls();
+	adjust->Save("Adjust");
+	adjust->Close();
 	// Save menu settings
 	menu->Save("sender-video-audio", true);
 	// Release FFmpeg resources
@@ -456,12 +484,216 @@ void ofApp::exit()
 }
 
 //--------------------------------------------------------------
+void ofApp::keyReleased(int key) {
+	bKeyReleased = true;
+}
+
+//--------------------------------------------------------------
+// Control keys
+void ofApp::keycodePressed(ofKeyEventArgs& e)
+{
+	// Prevent repeats until a key is released
+	if(!bKeyReleased)
+		return;
+
+	if (e.modifiers == OF_KEY_CONTROL) {
+
+		// Topmost - Ctrl-T
+		if (e.keycode == 't' || e.keycode == 'T') {
+			bTopmost = !bTopmost;
+			doTopmost(bTopmost);
+			menu->SetPopupItem("Show on top	Ctrl-T", bTopmost);
+		}
+
+		// Preview - Ctrl-V
+		if ((e.keycode == 'v' || e.keycode == 'V') && !bFullScreen && !m_videopath.empty()) {
+			bPreview = !bPreview;
+			doFullScreen(bPreview, true); // preview mode
+		}
+
+		// Fullscreen - Ctrl-F
+		if ((e.keycode == 'f' || e.keycode == 'F') && !bPreview && !m_videopath.empty()) {
+			bFullScreen = !bFullScreen;
+			doFullScreen(bFullScreen);
+			// Do not check this item because
+			// there is no menu full screen
+		}
+
+		// Pause/Play - Ctrl-P
+		if (e.keycode == 'p' || e.keycode == 'P') {
+			bPaused = !bPaused;
+			// Update "Go to" time
+			m_frameSec = m_progress*m_Duration;
+			// Handle Go to menu item
+			menu->EnablePopupItem("Go to	Ctrl-G", bPaused);
+		}
+
+		// Mute - Ctrl-M
+		if (e.keycode == 'm' || e.keycode == 'M') {
+			bMute = !bMute;
+			menu->SetPopupItem("Mute	Ctrl-M", bMute);
+		}
+
+		// Go to - Ctrl-G
+		if (e.keycode == 'g' || e.keycode == 'G') {
+			// Only enabled if paused
+			if (menu->GetEnabled("Go to	Ctrl-G")) {
+				if (m_frameSec > 0.0) {
+					std::string str = "Enter the seconds to go to\n";
+					str += "Current time is ";
+					str += std::format("{:.2f}", m_frameSec);
+					str += " seconds";
+					std::string text;
+					if (SpoutMessageBox(m_hWnd, str.c_str(), "Go to", MB_OKCANCEL, text) == IDOK) {
+						if (!text.empty()) {
+							double time = atof(text.c_str());
+							if (time < m_Duration) {
+								m_progress = time / m_Duration;
+								RestartVideo(time);
+								if (bPaused) {
+									// Read the next frame and load the read texture with pixels
+									if (m_pipein && m_pixelBuffer && m_SenderWidth > 0 && m_SenderHeight > 0) {
+										if (fread(m_pixelBuffer, 1, m_SenderWidth * m_SenderHeight * 4, m_pipein)) {
+											sender.LoadTexturePixels(readTexture.getTextureData().textureID,
+												readTexture.getTextureData().textureTarget,
+												m_SenderWidth, m_SenderHeight, m_pixelBuffer, GL_BGRA);
+											// Draw the frame
+											bPosition = true;
+											bReadVideo = true;
+										}
+									}
+								}
+							}
+							else {
+								SpoutMessageBox("Seconds entered exceeds video duration\n");
+							}
+						}
+					}
+				}
+			}
+		}
+
+		// Copy - Ctrl-O
+		if ((e.keycode == 'o' || e.keycode == 'O') && menu->GetEnabled("Copy	Ctrl-O")) {
+			if (!m_videopath.empty() && myTexture.isAllocated()) {
+				ofPixels myPixels;
+				myTexture.readToPixels(myPixels);
+				myPixels.setImageType(OF_IMAGE_COLOR_ALPHA); // Ensure RGBA pixel format
+				// Flip image data for clipboard DIB
+				sender.spoutcopy.FlipBuffer((unsigned char*)myPixels.getData(), m_SenderWidth, m_SenderHeight, GL_RGBA);
+				if (CopyToClipBoard(m_hWnd, myPixels.getData(), GL_RGBA, m_SenderWidth, m_SenderHeight)) {
+					SpoutMessageBox(m_hWnd, "Image copied to the clipboard", "Information", MB_OK | MB_ICONINFORMATION, 1200);
+				}
+				else {
+					SpoutMessageBox(m_hWnd, "Error copying image to the clipboard", "Warning", MB_OK | MB_ICONWARNING);
+				}
+				myPixels.clear();
+			}
+		}
+
+		// Capture - Ctrl-A
+		// Save    - Ctrl-S
+		if ((e.keycode == 'a' || e.keycode == 'A' || e.keycode == 's' || e.keycode == 'S') && !m_videopath.empty()) {
+			std::string savepath;
+			std::string title;
+			if (e.keycode == 'a' || e.keycode == 'A') {
+				// Make a timestamped image file name
+				std::string imagename = ofGetTimestampString() + ".png";
+				// Save png image to bin>data>captures
+				savepath = m_exePath;
+				savepath += "\\data\\images\\";
+				savepath += imagename;
+				title = "Capture";
+			}
+			else {
+				savepath = EnterFileName();
+				if (savepath.empty())
+					return;
+				// Enter a file extension if none entered
+				if (ofFilePath::getFileExt(savepath).empty())
+					savepath += ".png";
+				title = "Save";
+			}
+
+			// Get pixels from the rgba texture
+			ofImage myimage;
+			myTexture.readToPixels(myimage.getPixels());
+			myimage.save(savepath); // save image
+			std::string str = "Image saved to\n" + savepath;
+			SpoutMessageBox(m_hWnd, str.c_str(), title.c_str(), MB_OK | MB_ICONINFORMATION | MB_TOPMOST, 2000);
+
+		}
+
+		// Begin the same video - Ctrl-B
+		if (e.keycode == 'b' || e.keycode == 'B') {
+			if (bPaused) {
+				// Mouse press at the start of the progess bar
+				mousePressed(1, ofGetHeight() - 15, 0);
+			}
+			else {
+				RestartVideo();
+			}
+		}
+
+		// End of the video - Ctrl-E
+		if (e.keycode == 'e' || e.keycode == 'E') {
+			if (bPaused) {
+				// Mouse press at the end of the progess bar
+				double width = (double)ofGetWidth();
+				double interval = width / m_Duration;
+				int xpos = (int)(width - interval) + (int)interval - 1;
+				mousePressed(xpos, ofGetHeight() - 15, 0);
+			}
+			else {
+				// Same behaviour as VLC - starts again
+				RestartVideo();
+			}
+		}
+
+		// Exit - stop and close video - Ctrl-X
+		if (e.keycode == 'x' || e.keycode == 'X') {
+			// Stop audio and draw
+			bNCmousePressed = true;
+			// Stop soundstream
+			soundStream.stop();
+			// Release FFmpeg resources
+			CloseFFmpeg();
+			// Release the sender
+			if (m_pixelBuffer) delete[] m_pixelBuffer;
+			m_pixelBuffer = nullptr;
+			sender.ReleaseSender();
+			// Clear the video path
+			m_videopath.clear();
+			// Start audio and draw
+			bNCmousePressed = false;
+			// Cancel paused
+			bPaused = false;
+			soundStream.start();
+			// Quit full screen if set
+			if (bFullScreen) {
+				bFullScreen = false;
+				doFullScreen(bFullScreen);
+			}
+			// Close adjust dialog
+			if (hwndAdjust) {
+				adjust->Close();
+				hwndAdjust = nullptr;
+			}
+			menu->EnablePopupItem("Adjust", false);
+		}
+
+	} // endif control keys
+
+}
+
+//--------------------------------------------------------------
+// Plain keys
 void ofApp::keyPressed(int key)
 {
 	// Show controls on-screen
-	if (key == ' ' && !m_videopath.empty()) {
+	if (key == ' ') {
 		bShowInfo = !bShowInfo;
-		menu->SetPopupItem("Show controls - Space", bShowInfo);
+		menu->SetPopupItem("Show controls	Space", bShowInfo);
 	}
 
 	// Escape key exit full screen
@@ -471,169 +703,6 @@ void ofApp::keyPressed(int key)
 		doFullScreen(bFullScreen, bPreview);
 	}
 
-	// v - toggle preview
-	if ((key == 'v' || key == 'V') && !bFullScreen && !m_videopath.empty()) {
-		bPreview = !bPreview;
-		doFullScreen(bPreview, true); // enable/preview mode
-	}
-
-	// f - toggle fullscreen
-	if ((key == 'f' || key == 'F') && !bPreview && !m_videopath.empty()) {
-		bFullScreen = !bFullScreen;
-		doFullScreen(bFullScreen);
-		// Do not check this item because
-		// there is no menu full screen
-	}
-
-	// Pause/Play
-	if (key == 'p' || key == 'P') {
-		bPaused = !bPaused;
-		// Update "Go to" time
-		m_frameSec = m_progress*m_Duration;
-		// Handle menu item
-		if (bPaused)
-			menu->EnablePopupItem("Go to 'g'", true);
-		else
-			menu->EnablePopupItem("Go to 'g'", false);
-	}
-
-	// m - Mute
-	if (key == 'm' || key == 'M') {
-		bMute = !bMute;
-		menu->SetPopupItem("Mute 'm'", bMute);
-	}
-
-	// g - Go to
-	if (key == 'g' || key == 'G') {
-		// Only enabled if paused
-		if (menu->GetEnabled("Go to 'g'")) {
-			if (m_frameSec > 0.0) {
-				std::string str = "Enter the seconds to go to\n";
-				str += "Current time is ";
-				str += std::format("{:.2f}", m_frameSec);
-				str += " seconds";
-				std::string text;
-				if (SpoutMessageBox(m_hWnd, str.c_str(), "Go to", MB_OKCANCEL, text) == IDOK) {
-					if (!text.empty()) {
-						double time = atof(text.c_str());
-						if (time < m_Duration) {
-							m_progress = time / m_Duration;
-							RestartVideo(time);
-							if (bPaused) {
-								// Read the next frame and load the read texture with pixels
-								if (m_pipein && m_pixelBuffer && m_SenderWidth > 0 && m_SenderHeight > 0) {
-									if (fread(m_pixelBuffer, 1, m_SenderWidth * m_SenderHeight * 4, m_pipein)) {
-										sender.LoadTexturePixels(readTexture.getTextureData().textureID,
-											readTexture.getTextureData().textureTarget,
-											m_SenderWidth, m_SenderHeight, m_pixelBuffer, GL_BGRA);
-										// Draw the frame
-										bPosition = true;
-										bReadVideo = true;
-									}
-								}
-							}
-						}
-						else {
-							SpoutMessageBox("Seconds entered exceeds video duration\n");
-						}
-					}
-				}
-			}
-		}
-	}
-
-	// c - Copy
-	if ((key == 'c' || key == 'C') && menu->GetEnabled("Copy 'c'")) {
-		if (myTexture.isAllocated()) {
-			ofPixels myPixels;
-			myTexture.readToPixels(myPixels);
-			myPixels.setImageType(OF_IMAGE_COLOR_ALPHA); // Ensure RGBA pixel format
-			// Flip image data for clipboard DIB
-			sender.spoutcopy.FlipBuffer((unsigned char *)myPixels.getData(), m_SenderWidth, m_SenderHeight, GL_RGBA);
-			if (CopyToClipBoard(m_hWnd, myPixels.getData(), GL_RGBA, m_SenderWidth, m_SenderHeight)) {
-				SpoutMessageBox(m_hWnd, "Image copied to the clipboard", "Information", MB_OK | MB_ICONINFORMATION, 1200);
-			}
-			else {
-				SpoutMessageBox(m_hWnd, "Error copying image to the clipboard", "Warning", MB_OK | MB_ICONWARNING);
-			}
-			myPixels.clear();
-		}
-	}
-
-	// a - Adjust
-	if (key == 'a' || key == 'A' && menu->GetEnabled("Adjust 'a'")) {
-		if (sender.IsInitialized()) {
-			if (!hwndAdjust) {
-				// Open the adjust menu
-				hwndAdjust = adjust->Open("Adjust");
-				menu->SetPopupItem("Adjust 'a'", true);
-				SetFocus(m_hWnd);
-			}
-			else {
-				adjust->Close();
-				menu->SetPopupItem("Adjust 'a'", false);
-			}
-		}
-	}
-
-
-	// r - Restart the same video
-	if (key == 'r' || key == 'R') {
-		if (bPaused) {
-			// Mouse press at the start of the progess bar
-			mousePressed(1, ofGetHeight()-15, 0);
-		}
-		else {
-			RestartVideo();
-		}
-	}
-
-	// e - End of the video
-	if (key == 'e' || key == 'E') {
-		if (bPaused) {
-			// Mouse press at the end of the progess bar
-			double width = (double)ofGetWidth();
-			double interval = width/m_Duration;
-			int xpos = (int)(width-interval)+(int)interval-1;
-			mousePressed(xpos, ofGetHeight()-15, 0);
-		}
-		else {
-			// Same behaviour as VLC - starts again
-			RestartVideo();
-		}
-	}
-
-	// s - Stop and close video
-	if (key == 's' || key == 'S') {
-		// Stop audio and draw
-		bNCmousePressed = true;
-		// Stop soundstream
-		soundStream.stop();
-		// Release FFmpeg resources
-		CloseFFmpeg();
-		// Release the sender
-		if (m_pixelBuffer) delete[] m_pixelBuffer;
-		m_pixelBuffer = nullptr;
-		sender.ReleaseSender();
-		// Clear the video path
-		m_videopath.clear();
-		// Start audio and draw
-		bNCmousePressed = false;
-		// Cancel paused
-		bPaused = false;
-		soundStream.start();
-		// Quit full screen if set
-		if (bFullScreen) {
-			bFullScreen = false;
-			doFullScreen(bFullScreen);
-		}
-		// Close adjust dialog
-		if (hwndAdjust) {
-			adjust->Close();
-			hwndAdjust = nullptr;
-		}
-		menu->EnablePopupItem("Adjust 'a'", false);
-	}
 }
 
 //--------------------------------------------------------------
@@ -670,59 +739,65 @@ void ofApp::mousePressed(int x, int y, int button)
 		// "Go to" time is updated in RestartVideo and audioOut
 		// Handle menu item
 		if (bPaused)
-			menu->EnablePopupItem("Go to 'g'", true);
+			menu->EnablePopupItem("Go to	Ctrl-G", true);
 		else
-			menu->EnablePopupItem("Go to 'g'", false);
+			menu->EnablePopupItem("Go to	Ctrl-G", false);
 	}
 
 	// Mouse press on icons
-	// 0 reverse, 1 Pause, 2 Play, 3 stop 4 forward
-	// 5 fullscreen, 6, sound, 7 mute
+	// 0 begin, 1 Pause, 2 Play, 3 exit, 4 end
+	// 5 fullscreen, 6 sound, 7 mute
 
 	// Icon 0 position
 	int xpos = 10;
 	ypos = ofGetHeight()-icon_size - 20;
 
-	// 1/2 - pause/play
+	// 1/2 - pause/play - Ctrl-P
 	if (x > xpos && x <= (xpos + icon_size)
 	&& y > ypos && y <= (ypos + icon_size)) {
-		keyPressed('p');
+		m_ctrlkey.keycode = 'p';
+		keycodePressed(m_ctrlkey);
 	}
 
-	// 0 - reverse - start again
+	// 0 - begin - start again - Ctrl-B
 	xpos += icon_size*3/2;
 	if (x > xpos && x <= (xpos + icon_size)
 	&& y > ypos && y <= (ypos + icon_size)) {
-		keyPressed('r');
+		m_ctrlkey.keycode = 'b';
+		keycodePressed(m_ctrlkey);
 	}
 
-	// 3 - stop and close
+	// 3 - exit (stop and close the video) - Ctrl-X
 	xpos += icon_size*1.1;
 	if (x > xpos && x <= (xpos + icon_size)
 	&& y > ypos && y <= (ypos + icon_size)) {
-		keyPressed('s');
+		m_ctrlkey.keycode = 'x';
+		keycodePressed(m_ctrlkey);
 	}
 
-	// 4 - fast forward
+	// 4 - End - Ctrl-E
 	xpos += icon_size*1.1;
 	if (x > xpos && x <= (xpos + icon_size)
 	&& y > ypos && y <= (ypos + icon_size)) {
-		keyPressed('e');
+		m_ctrlkey.keycode = 'e';
+		keycodePressed(m_ctrlkey);
 	}
 
-	// 5 full screen
+	// 5 - full screen - Ctrl-F
 	xpos += icon_size*3/2;
 	if (x > xpos && x <= (xpos + icon_size)
 	&& y > ypos && y <= (ypos + icon_size)) {
-		keyPressed('f');
+		m_ctrlkey.keycode = 'f';
+		keycodePressed(m_ctrlkey);
 		m_iconColor[9] = icon_background_color;
 	}
 
-	// 6/7 sound/mute
+	// 6/7 sound/mute - Ctrl-M
 	xpos += icon_size*3/2;
 	if (x > xpos && x <= (xpos + icon_size)
 	&& y > ypos && y <= (ypos + icon_size)) {
-		keyPressed('m');
+		m_ctrlkey.keycode = 'm';
+		keycodePressed(m_ctrlkey);
 	}
 
 
@@ -814,7 +889,7 @@ bool ofApp::OpenVideo(std::string filePath, double seconds)
 		adjust->Close();
 		hwndAdjust = nullptr;
 	}
-	menu->EnablePopupItem("Adjust 'a'", false);
+	menu->EnablePopupItem("Adjust", false);
 
 	// Stop audioOut
 	soundStream.stop();
@@ -993,13 +1068,13 @@ bool ofApp::OpenFFmpeg(std::string filePath, double seconds)
 		bReadVideo = true;
 		// Handle menu items
 		if (bPaused)
-			menu->EnablePopupItem("Go to 'g'", true);
+			menu->EnablePopupItem("Go to	Ctrl-G", true);
 		else
-			menu->EnablePopupItem("Go to 'g'", false);
-		menu->EnablePopupItem("Adjust 'a'", true);
-		menu->EnablePopupItem("Copy 'c'", true);
-		menu->EnablePopupItem("Capture", true);
-		menu->EnablePopupItem("Save as", true);
+			menu->EnablePopupItem("Go to	Ctrl-G", false);
+		menu->EnablePopupItem("Adjust", true);
+		menu->EnablePopupItem("Copy	Ctrl-O", true);
+		menu->EnablePopupItem("Capture	Ctrl-A", true);
+		menu->EnablePopupItem("Save	Ctrl-S", true);
 		return true;
 	}
 	else
@@ -1077,13 +1152,13 @@ void ofApp::CloseFFmpeg()
 	m_audioPipe = nullptr;
 	// Handle menu items
 	if (bPaused)
-		menu->EnablePopupItem("Go to 'g'", true);
+		menu->EnablePopupItem("Go to	Ctrl-G", true);
 	else
-		menu->EnablePopupItem("Go to 'g'", false);
-	menu->EnablePopupItem("Adjust 'a'", false);
-	menu->EnablePopupItem("Copy 'c'", false);
-	menu->EnablePopupItem("Capture", false);
-	menu->EnablePopupItem("Save as", false);
+		menu->EnablePopupItem("Go to	Ctrl-G", false);
+	menu->EnablePopupItem("Adjust", false);
+	menu->EnablePopupItem("Copy	Ctrl-O", false);
+	menu->EnablePopupItem("Capture	Ctrl-A", false);
+	menu->EnablePopupItem("Save	Ctrl-S", false);
 }
 
 //--------------------------------------------------------------
@@ -1124,14 +1199,18 @@ void ofApp::appMenuFunction(string title, bool bChecked)
 
 	// Keep the audio in sync with video when menu selection
 	// or mouse click on the title bar stops drawing.
-	// WM_ENTERMENULOOP and WM_EXITMENULOOP are returned by ofxWinMenu
-	// but are not required if WM_NCLBUTTONDOWN is tested.
 	if (title == "WM_NCLBUTTONDOWN") {
 		// WM_NCLBUTTONUP is not generated if the
 		// mouse is released on the title bar.
 		// The flag is reset when when Draw resumes and is
 		// also used when video or audio has to be stopped
 		bNCmousePressed = true;
+		return;
+	}
+
+	// WM_ENTERMENULOOP and WM_EXITMENULOOP are returned by ofxWinMenu
+	// but are not required if WM_NCLBUTTONDOWN is tested.
+	if (title == "WM_ENTERMENULOOP" || title == "WM_EXITMENULOOP") {
 		return;
 	}
 
@@ -1167,7 +1246,7 @@ void ofApp::appMenuFunction(string title, bool bChecked)
 		}
 		else {
 			str = m_exePath;
-			str += "/data/videos/";
+			str += "/data/videos/"; // LJ DEBUG
 		}
 
 		// Does the video folder exist ?
@@ -1175,8 +1254,11 @@ void ofApp::appMenuFunction(string title, bool bChecked)
 			// Use the executable path as default
 			str = m_exePath;
 		}
-		if(!ShellExecuteA(m_hWnd, "open", str.c_str(), NULL, NULL, SW_SHOWNORMAL)) {
-			MessageBoxA(NULL, "No video loaded", "Warning", MB_ICONWARNING | MB_OK);
+		if (!ShellExecuteA(m_hWnd, "open", str.c_str(), NULL, NULL, SW_SHOWNORMAL)) {
+			MessageBoxA(NULL, "Video folder not found", "Warning", MB_ICONWARNING | MB_OK);
+		}
+		else {
+			SetExplorerTopmost(str);
 		}
 	}
 
@@ -1191,9 +1273,14 @@ void ofApp::appMenuFunction(string title, bool bChecked)
 		if(!ShellExecuteA(m_hWnd, "open", str.c_str(), NULL, NULL, SW_SHOWNORMAL)) {
 			MessageBoxA(NULL, "No image folder", "Warning", MB_ICONWARNING | MB_OK);
 		}
+		else {
+			SetExplorerTopmost(str);
+		}
 	}
 
 	if (title == "Exit") {
+		// Openframeworks exit function saves adjust
+		// dialog and menu settings and closes resources
 		ofExit();
 	}
 
@@ -1201,24 +1288,40 @@ void ofApp::appMenuFunction(string title, bool bChecked)
 	// Output menu
 	//
 
-	// Activate the adjust dialog
-	if (title == "Adjust 'a'") {
-		keyPressed('a');
-	}
+	// Menu toggle items that are auto-check
+	// are saved in the menu ini file and are
+	// handled separately from Control keys
 
-	if (title == "Mute 'm'") {
-		keyPressed('m');
-	}
-
-	if (title == "Show on top") {
+	if (title == "Show on top	Ctrl-T") {
 		bTopmost = bChecked;
 		doTopmost(bTopmost);
-		menu->SetPopupItem("Show on top", bTopmost);
+	}
+		
+	if (title == "Mute	Ctrl-M") {
+		bMute = bChecked;
+	}
+
+	if (title == "Show controls	Space") {
+		bShowInfo = bChecked;
+	}
+
+	if (title == "Adjust") {
+		if (sender.IsInitialized()) {
+			if (!hwndAdjust) {
+				// Open the adjust menu
+				hwndAdjust = adjust->Open("Adjust");
+				menu->SetPopupItem("Adjust", true);
+				SetFocus(m_hWnd);
+			}
+			else {
+				adjust->Close();
+				menu->SetPopupItem("Adjust", false);
+			}
+		}
 	}
 
 	if (title == "Resize") {
 		bScale = bChecked;
-		menu->SetPopupItem("Resize", bScale);
 		// Release FFmpeg resources
 		// and close the video playing
 		CloseFFmpeg();
@@ -1233,56 +1336,78 @@ void ofApp::appMenuFunction(string title, bool bChecked)
 		}
 	}
 
-	if (title == "Go to 'g'") {
-		keyPressed('g');
+	//
+	// Menu items that are not auto-checked are
+	// not saved in the menu ini file and can be
+	// handled by the control key function.
+	//
+	
+	if (title == "Preview	Ctrl-V") {
+		m_ctrlkey.keycode = 'v';
+		keycodePressed(m_ctrlkey);
 	}
 
-	if (title == "Copy 'c'" && !m_videopath.empty()) {
-		keyPressed('c');
+	if (title == "Full screen	Ctrl-F") {
+		m_ctrlkey.keycode = 'f';
+		keycodePressed(m_ctrlkey);
 	}
 
-	if ((title == "Capture" || title == "Save as") && !m_videopath.empty()) {
-		std::string savepath;
-		if (title == "Capture") {
-			// Make a timestamped image file name
-			std::string imagename = ofGetTimestampString() + ".png";
-			// Save png image to bin>data>captures
-			savepath = m_exePath;
-			savepath += "\\data\\images\\";
-			savepath += imagename;
-		}
-		else {
-			savepath = EnterFileName();
-			if (savepath.empty())
-				return;
-			// Enter a file extension if none entered
-			if (ofFilePath::getFileExt(savepath).empty())
-					savepath += ".png";
-		}
-		// Get pixels from the rgba texture
-		ofImage myimage;
-		myTexture.readToPixels(myimage.getPixels());
-		myimage.save(savepath); // save image
-		std::string str = "Image saved to\n" + savepath;
-		SpoutMessageBox(m_hWnd, str.c_str(), title.c_str(), MB_OK | MB_ICONINFORMATION | MB_TOPMOST, 2000);
+	if (title == "Go to	Ctrl-G") {
+		m_ctrlkey.keycode = 'g';
+		keycodePressed(m_ctrlkey);
 	}
 
-	if (title == "Preview 'v'") {
-		keyPressed('v');
+	if (title == "Copy	Ctrl-O") {
+		m_ctrlkey.keycode = 'o';
+		keycodePressed(m_ctrlkey);
 	}
 
-	if (title == "Full screen 'f'") {
-		keyPressed('f');
+	if (title == "Capture	Ctrl-A") {
+		m_ctrlkey.keycode = 'a';
+		keycodePressed(m_ctrlkey);
+
 	}
 
-	if (title == "Show controls - Space") {
-		bShowInfo = bChecked;
-		menu->SetPopupItem("Show controls - Space", bShowInfo);
+	if (title == "Save	Ctrl-S") {
+		m_ctrlkey.keycode = 's';
+		keycodePressed(m_ctrlkey);
+
 	}
 
 	//
 	// Help menu
 	//
+	if (title == "Options") {
+		std::string str = "        File > Open video - Select a video file\n";
+		str += "        File > Video folder - open folder of the last video\n";
+		str += "        File > Image folder - open folder for image captures\n\n";
+		str += "        Output > Adjust - open adjust dialog\n";
+		str += "        Output > Go to (Ctrl-G) - go to position in seconds\n";
+		str += "        Output > Copy (Ctrl-O) - copy the current frame to the clipboard\n";
+		str += "        Output > Capture (Ctrl-A) - capture and save the current frame as timestamp image file\n";
+		str += "        Output > Save as (Ctrl-S) - save the current frame as an image file\n";
+		str += "        Output > Mute (Ctrl-M) - mute speakers\n";
+		str += "        Output > Resize - limit video to 1280 width (resets)\n";
+		str += "            FFmpeg pipe read (fread) can be slow with large images,\n";
+		str += "            typically 10-14 msec at 1920x1080 compared to 3-4 msec\n";
+		str += "            at 1280x720, and audio can drift out of sync. This option\n";
+		str += "            limits output width to 1280 while preserving aspect ratio.\n";
+		str += "            The output frame rate is also limited to 30fps and FFmpeg\n";
+		str += "            drops frames to keep that rate.\n\n";
+		str += "        View > Show on top (Ctrl-T) - set window topmost\n";
+		str += "        View > Show controls (space bar) - show video controls\n";
+		str += "        View > Preview (Ctrl-V) - show minimal preview window\n";
+		str += "        View > Full screen (Ctrl-F) - show full screen (ESC to exit)\n\n";
+		str += "        Video player controls\n";
+		str += "            Ctrl-P - Pause / Play\n";
+		str += "            Ctrl-B - Beginning of the video\n";
+		str += "            Ctrl-X - Exit - stop and close\n";
+		str += "            Ctrl-E - End of the video\n";
+		str += "            Ctrl-F - Full screen\n";
+		str += "            Ctrl-M - Mute audio\n";
+		SpoutMessageBoxAllowCancel(); // Enable the caption close button
+		SpoutMessageBox(NULL, str.c_str(), "Options", MB_ICONINFORMATION | MB_OK | MB_TOPMOST);
+	}
 
 	if (title == "About") {
 
@@ -1310,10 +1435,9 @@ void ofApp::appMenuFunction(string title, bool bChecked)
 
 		// Icon in the caption rather than the dialog window
 		SpoutMessageBoxIconSmall();
+		SpoutMessageBoxAllowCancel(); // Enable the caption close button
 		SpoutMessageBoxButton(1000, L"FFmpeg");
-		SpoutMessageBoxButton(2000, L"Options");
-
-		int iRet = SpoutMessageBox(NULL, about.c_str(), "FFmpeg", MB_ICONINFORMATION | MB_OK | MB_TOPMOST);
+		int iRet = SpoutMessageBox(NULL, about.c_str(), "About", MB_ICONINFORMATION | MB_OK | MB_TOPMOST);
 		if(iRet == 1000) {
 			// FFmpeg download instructions
 			// Keep the dialog open with "?noclose" in the url
@@ -1322,30 +1446,6 @@ void ofApp::appMenuFunction(string title, bool bChecked)
 			std::string str = "Downloading FFmpeg\n\n" + ffdownloadstr();
 			SpoutMessageBoxIconSmall();
 			SpoutMessageBox(NULL, str.c_str(), "FFmpeg", MB_ICONINFORMATION | MB_TOPMOST | MB_OK);
-		}
-		else if (iRet == 2000) {
-			std::string str = "        File > Open video - Select a video file\n";
-			str += "        File > Video folder - open folder of the last video\n";
-			str += "        File > Image folder - open folder for image captures\n\n";
-			str += "        Output > Adjust (a) - open adjust dialog\n";
-			str += "        Output > Go to (g) - go to position in seconds\n";
-			str += "        Output > Copy (c) - copy the current frame to the clipboard\n";
-			str += "        Output > Capture - save the current frame as timestamp image file\n";
-			str += "        Output > Save as - save the current frame as an image file\n";
-			str += "        Output > Mute (m) - mute speakers\n";
-			str += "        Output > Resize - limit video to 1280 width (resets)\n";
-			str += "            FFmpeg pipe read (fread) can be slow with large images,\n";
-			str += "            typically 10-14 msec at 1920x1080 compared to 3-4 msec\n";
-			str += "            at 1280x720, and audio can drift out of sync. This option\n";
-			str += "            limits output width to 1280 while preserving aspect ratio.\n";
-			str += "            The output frame rate is also limited to 30fps and FFmpeg\n";
-			str += "            drops frames to keep that rate.\n\n";
-			str += "        View > Show on top - set window topmost\n";
-			str += "        View > Show controls (space bar) - show video controls\n";
-			str += "        View > Preview (v) - show minimal preview window\n";
-			str += "        View > Full screen (f) - show full screen (ESC to exit)\n";
-			SpoutMessageBoxIconSmall();
-			SpoutMessageBox(NULL, str.c_str(), "Options", MB_ICONINFORMATION | MB_OK | MB_TOPMOST);
 		}
 
 	}
@@ -1407,7 +1507,7 @@ void ofApp::AdjustCallback(std::string title, std::string text, int value)
 	if (title == "WM_DESTROY") {
 		hwndAdjust = nullptr;
 		// Uncheck menu item
-		menu->SetPopupItem("Adjust 'a'", false);
+		menu->SetPopupItem("Adjust", false);
 		return;
 	}
 
@@ -1709,7 +1809,8 @@ void ofApp::doFullScreen(bool bEnable, bool bPreviewMode)
 
 		// Set to full screen or preview
 
-		// m_hwndTop is set by user selection "Show on top"
+		// m_hwndTop is set by user selection
+		// "Show on top	Ctrl-T"
 		if (m_hwndTop) {
 			hwndTopmost = m_hwndTop;
 		}
@@ -1982,6 +2083,45 @@ void ofApp::SaveImageFile(std::string name)
 	myTexture.readToPixels(myimage.getPixels());
 	myimage.save(name); // save png image
 
+}
+
+//--------------------------------------------------------------
+bool ofApp::SetExplorerTopmost(std::string path)
+{
+	HWND hw = NULL;
+	int i = 0;
+	// Find the last occurrence of either '\' or '/')
+	size_t pos = path.find_last_of("\\/");
+	// Allow for a trailing backslash in the path
+	if (pos == path.size() - 1) {
+		path = path.substr(0, pos);
+		pos = path.find_last_of("\\/");
+	}
+	// Find the folder name (explorer caption)
+	// If no '\' or '/' is found, use the whole path string.
+	// Otherwise, use the substring after the final path separator.
+	std::string s2 = (pos == std::string::npos) ? path : path.substr(pos+1);
+	if (!s2.empty()) {
+		// A loop is needed or the window isn't found
+		do {
+			hw = FindWindowA("CabinetWClass", s2.c_str());
+			Sleep(50);
+			i++;
+			if (i > 100) break;
+		} while (hw == NULL);
+		if (hw) {
+			// Set explorer topmost.
+			// Explorer remains topmost if the application is already topmost and then closed
+			// Position half way down the app window
+			RECT rect{};
+			GetWindowRect(m_hWnd, &rect);
+			int xpos = rect.left-(rect.right-rect.left)/2;
+			int ypos = rect.top+(rect.bottom-rect.top)/2;
+			SetWindowPos(hw, HWND_TOPMOST, xpos, ypos, 0, 0, SWP_NOSIZE | SWP_SHOWWINDOW);
+			return true;
+		}
+	}
+	return false;
 }
 
 // ... the end

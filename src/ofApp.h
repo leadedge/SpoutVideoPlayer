@@ -38,6 +38,7 @@ class ofApp : public ofBaseApp{
 		void draw();
 		void exit();
 		void keyPressed(int key);
+		void keyReleased(int key);
 		void mousePressed(int x, int y, int button);
 		void mouseMoved(int x, int y);
 		void dragEvent(ofDragInfo dragInfo);
@@ -64,6 +65,11 @@ class ofApp : public ofBaseApp{
 		bool bFullScreen = false;
 		bool bPreview = false;
 		bool bShowInfo = true;
+
+		// To detect control keys
+		void keycodePressed(ofKeyEventArgs& e);
+		ofKeyEventArgs m_ctrlkey{};
+		bool bKeyReleased = true;
 
 		// Sender
 		Spout sender;  // Sender object
@@ -119,6 +125,7 @@ class ofApp : public ofBaseApp{
 		std::string ffdownloadstr(); // FFmpeg download string for messagebox
 		std::string EnterFileName(); // File dialog with more options that Openframeworks
 		void SaveImageFile(std::string name); // For Capture or Save as
+		bool SetExplorerTopmost(std::string folderpath); // To bring a folder view topmost
 
 		// Full screen
 		void doFullScreen(bool bEnable, bool bPreview = false);
@@ -133,11 +140,11 @@ class ofApp : public ofBaseApp{
 		std::vector<ofImage> m_icons;
 		std::vector<ofColor> m_iconColor;
 
-		ofImage icon_reverse;     // 0
+		ofImage icon_begin;       // 0
 		ofImage	icon_pause;       // 1
 		ofImage	icon_play;        // 2
-		ofImage	icon_stop;        // 3
-		ofImage	icon_fastforward; // 4
+		ofImage	icon_exit;        // 3
+		ofImage	icon_end;         // 4
 		ofImage	icon_full_screen; // 5
 		ofImage	icon_sound;       // 6
 		ofImage	icon_mute;        // 7 
