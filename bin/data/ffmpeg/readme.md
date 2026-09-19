@@ -1,5 +1,5 @@
 
-FFmpeg.exe and FFprobe.exe are required for the SenderAudioVideo example.
+FFmpeg.exe and FFprobe.exe are required for SpoutVideoAudio
 
 * Go to https://github.com/GyanD/codexffmpeg/releases
 * Choose the "Essentials" build. e.g. "ffmpeg-8.1.2-essentials_build.zip" 

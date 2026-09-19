@@ -27,6 +27,7 @@
 
 	o ofxWinMenu to create a window menu
 	o ofxWinDialog to create a dialog
+	o ofxNDI to create an NDI sender
 	o Compute shaders for image adjust
 	o Setting an icon from a Windows dll
 	o Detecting non-client area mouse press
@@ -35,6 +36,7 @@
     o FFmpeg with two pipes to decode video and audio frames
 	o Fps control using HoldFps
 	o Sync video with audio using audio timing and frame matching
+	o NDI audio and video sending
     o Openframeworks dragEvent for drag and drop
 	o Openframeworks soundstream and audioOut
 	o Video duration, frame counter and progress bar
@@ -54,6 +56,20 @@
 			   Save/restore item states in a menu initialization file
 			   Add SetExplorerTopmost to show video and image folders
 			   Release update
+	09.88.26 - Right mouse button, full screen
+			   Left mouse button above the control bar and icons, Pause/Play
+	11.08.26 - Add NDI send for video and audio
+	12.08.26 - Extract the Information icon from Shell32.dll
+			   to avoid a MessageBeep sound where not wanted
+	13.08.26 - NDI output menu option
+			   Reset explorer window no-topmost on Exit
+			   Change to user installed addons and remove from source folder
+			   Project > Properties > C/C++ > General - set paths for addons
+	19.08.26 - Add NDI YUV output format menu option
+			   Add rgba2yuv with shaders to data folder
+	20.08.26 - Add resource.rc/resource.rc instead of Openframeworks icon.rc
+			   for custom icon and version information resources
+	10.09.26 - Rebuild (/MD to use RtAudio) Version 3.0.0.1
 
 	Copyright (C) 2026 Lynn Jarvis.
 
@@ -125,10 +141,18 @@ void ofApp::setup(){
 	// Main window handle
 	m_hWnd = ofGetWin32Window();
 
-	// Set a custom icon from C:\Windows\System32\imageres.dll
-	m_hIcon = ExtractWindowsIcon(5201, "imageres.dll");
+	// See resource.rc
+	HICON m_hIcon = LoadIconA(GetModuleHandle(nullptr), MAKEINTRESOURCEA(IDI_ICON1));
+	SetClassLongPtrA(m_hWnd, GCLP_HICON, (LONG_PTR)m_hIcon);
 	SendMessage(m_hWnd, WM_SETICON, ICON_BIG, (LPARAM)m_hIcon);
 	SendMessage(m_hWnd, WM_SETICON, ICON_SMALL, (LPARAM)m_hIcon);
+
+	// Extract the Information icon from Shell32.dll
+	// to avoid the MessageBeep sound
+	m_hIconInfo = adjust->LoadWindowsIcon(16783);
+	// LJ DEBUG
+	// Not working
+	// m_hIconInfo = adjust->ExtractWindowsIcon(16783);
 
 	// Disable Openframeworks escape key exit
 	// for fullscreen (see keyPressed)
@@ -161,12 +185,19 @@ void ofApp::setup(){
 	// Output popup
 	hPopup = menu->AddPopupMenu(hMenu, "Output");
 	menu->AddPopupItem(hPopup, "Adjust", false, false);
-	bScale = true;
-	menu->AddPopupItem(hPopup, "Resize", bScale);
+	nScale = 2; // 1280 default
+	menu->AddPopupItem(hPopup, "Resize", false, false);
+	HMENU hSub = menu->AddPopupMenu(hPopup, "NDI");
+	bNDI = false; // default
+	menu->AddPopupItem(hSub, "Enable", bNDI);
+	bYUV = false;
+	menu->AddPopupItem(hSub, "YUV", bYUV);
+
 	menu->AddPopupSeparator(hPopup);
-	menu->AddPopupItem(hPopup, "Copy	Ctrl-O", false, false); // Copy
+	menu->AddPopupItem(hPopup, "Copy	Ctrl-C", false, false); // Copy
 	menu->AddPopupItem(hPopup, "Capture	Ctrl-A", false, false); // Capture
 	menu->AddPopupItem(hPopup, "Save	Ctrl-S", false, false); // Save
+
 	menu->AddPopupSeparator(hPopup);
 	menu->AddPopupItem(hPopup, "Go to	Ctrl-G", false, false); // Go to
 	bMute = false;
@@ -190,7 +221,17 @@ void ofApp::setup(){
 
 	// Load previous menu settings
 	// after the menu items are established
-	menu->Load("sender-video-audio");
+	menu->Load("spout-video-audio");
+
+	// Get the scale factor from the same ini file
+	strcpy_s(m_inifile, MAX_PATH, m_exePath.c_str());
+	strcat_s(m_inifile, MAX_PATH, "/data/spout-video-audio.ini");
+	if (_access(m_inifile, 0) != -1) {
+		char tmp[MAX_PATH]{};
+		if(GetPrivateProfileStringA((LPCSTR)"Options", (LPSTR)"Scale", (LPSTR)"0", (LPSTR)tmp, MAX_PATH, m_inifile) > 0) {
+			nScale = atoi(tmp); // 0-3 "None", "1920", "1280", "640"
+		}
+	}
 	
 	// Adjust window for the starting client size (in main.cpp)
 	// allowing for a menu and centre on the screen
@@ -269,12 +310,10 @@ void ofApp::update() {
 //--------------------------------------------------------------
 void ofApp::draw()
 {
-
-	ofBackground(0);
 	ofSetColor(255);
 
 	// If not initialized
-	if (!m_pipein) {
+	if (!m_pipein || !m_audioPipe) {
 		ofBackground(0, 20, 70); // Dark steel blue
 		std::string str = "DRAG AND DROP VIDEOS HERE";
 		// Get the width of the string
@@ -285,6 +324,8 @@ void ofApp::draw()
 		int xpos = (dr.right - dr.left)/2 - strwidth/2;
 		int ypos = (dr.bottom - dr.top)/2;
 		myFont.drawString(str, xpos, ypos);
+		// Reset video read
+		bReadVideo = false;
 		return;
 	}
 
@@ -292,11 +333,15 @@ void ofApp::draw()
 	// menu selection or click on the caption
 	bNCmousePressed = false;
 
+	// Opaque black
+	ofBackground(0);
+
 	// Read a video frame from the FFmpeg input pipe
 	// if not paused or positioning
 	if(!bPaused || bPosition) {
 		if (m_pipein && m_pixelBuffer && m_SenderWidth > 0 && m_SenderHeight > 0) {
-			// audioOut signals to read the next frame based on the video frame rate
+			// audioOut sets bReadVideo to read the next frame
+			// based on the audio and video frame rates
 			if (bReadVideo) {
 				if (fread(m_pixelBuffer, 1, m_SenderWidth*m_SenderHeight*4, m_pipein) == 0) {
 					// fread = 0 means the end of the file
@@ -304,8 +349,17 @@ void ofApp::draw()
 					RestartVideo();
 					return;
 				}
-				m_FramesRead++;  // Number of frames read after pause
-				m_progress += 1.0/(double)m_Frames; // Progress bar position
+
+				// Increment the number of frames read (Reset after pause)
+				m_FramesRead++;
+
+				// Progress bar position
+				m_progress += 1.0/(double)m_Frames;
+
+				// Reset the bReadVideo flag to wait for audio
+				// to signal before reading the next frame
+				if(m_audioPipe)
+					bReadVideo = false;
 
 				// Load the read texture with pixels
 				sender.LoadTexturePixels(readTexture.getTextureData().textureID,
@@ -319,13 +373,29 @@ void ofApp::draw()
 				sender.SendTexture(myTexture.getTextureData().textureID,
 					myTexture.getTextureData().textureTarget,
 					m_SenderWidth, m_SenderHeight, false);
-		
-				if(m_audioPipe)
-					bReadVideo = false; // Wait for audio
+
+				
+				// Send the NDI video pixels
+				// Sending is asynchronous so that audio is not affected
+				// Async send waits for the previous frame to finish before
+				// submitting the current one. Controlled by the video
+				// frame rate set for the NDI sender.
+				if (bNDI && ndiSender.SenderCreated()) {
+					// Send BGRA pixels to enable transparency
+					// or texture with YUV shader conversion
+					// for optimum performance
+					if (bYUV)
+						ndiSender.SendImage(myTexture);
+					else
+						ndiSender.SendImage(m_pixelBuffer, m_SenderWidth, m_SenderHeight, true);
+				}
 			}
-			// Reset sync flag to play audio (set in RestartVideo)
+
+			// Reset the flag for no audio while syncing video
+			// (set in RestartVideo)
 			if(m_audioPipe)
 				bVideoSync = false;
+
 		}
 		// Clear positioning flag for progress bar or goto
 		bPosition = false;
@@ -348,19 +418,121 @@ void ofApp::draw()
 			ShowInfo();
 	}
 
-	//
-	// Lower the draw() cycle rate
-	//
-	// For audio, set higher that the framerate
-	// of the video file used in audioOut
-	// If no audio, hold the video frame rate
-	if(m_audioPipe)
-		sender.HoldFps(m_FrameRate + 2);
-	else
+	// If no audio, hold the video frame rate.
+	if(!m_audioPipe)
 		sender.HoldFps(m_FrameRate);
 
-
 }
+
+
+//--------------------------------------------------------------
+void ofApp::audioOut(ofSoundBuffer &buffer)
+{
+	// Do not process audio for menu selection,
+	// mouse click on the caption, or if paused
+	// or if no audio in the video file
+	if (bNCmousePressed || bPaused || !m_audioPipe) {
+		if(buffer.size() > 0)
+			buffer.set(0.0f); // silence
+		return;
+	}
+
+	//
+	// Read the next lot of audio frames from the file.
+	// This is a separate thread to Draw so the audio is not
+	// limited by the video rate. The number of bytes required
+	// by the audio callback and the PCM data buffer are
+	// established when soundstream is set up.
+	//
+	// Wait until draw reads a frame
+	if (m_audioPipe && m_FramesRead > 0) {
+		size_t bytesRead = fread(m_pcmBuffer.data(), 1, m_pcmBuffer.size()*sizeof(int16_t), m_audioPipe);
+		if (bytesRead == 0) {
+			// fread = 0 means the end of the file
+			// Let video read and start again
+			bReadVideo = true;
+			return;
+		}
+		else if (bytesRead > 0) {
+
+			// NDI sender audio
+			// Sender is created in OpenSender
+			if (bNDI && ndiSender.SenderCreated()) {
+				// Set the number of NDI audio samples
+				ndiSender.SetAudioSamples((int)bytesRead/4); // float
+				// Set the new PCM audio data to the sender audio frame
+				ndiSender.SetAudioData((float*)m_pcmBuffer.data());
+				// Send the audio data
+				ndiSender.NDIsender.SendAudio();
+
+				// Out of sync
+				/*
+				if (bNDI) {
+					// Dark blue background
+					ofBackground(0, 20, 70);
+					if (!bNDIconnected) {
+						printf("Get sender connection\n");
+						if (ndiSender.GetConnections(10) > 0) {
+							printf("Connected\n");
+							bNDIconnected = true;
+						}
+						else {
+							// Works if a receiver is open
+							// Timeout required if not
+							// Detect in OpenSender ???
+							// Signal Draw to get the next video frame
+							// bReadVideo = true;
+							return;
+						}
+					}
+				}
+				*/
+
+			}
+
+			// Sync video with audio
+			// Calculate the required video frame based on audio time
+			double audioTime = (double)m_audioFramesPlayed.load()/m_sampleRate;
+			long requiredFrame = (int)(audioTime*m_FrameRate);
+			if (requiredFrame > m_FramesRead) {
+				// Signal Draw to get the next video frame
+				bReadVideo = true;
+			}
+
+			//
+			// For the sound to come from the speakers
+			// Silence if mute or syncing video with audio
+			//
+			// This is independent from NDI sender audio which will
+			// play if enabled by and NDI receiver. Mute should be
+			// enabled in that case to avoid duplicate audio sources.
+			//
+			if (!bMute && !bVideoSync) {
+				size_t samplesRead = bytesRead / sizeof(int16_t);
+				for (size_t i = 0; i < samplesRead; i++) {
+					// A signed 16-bit sample ranges from : -32768 ... +32767
+					// OpenFrameworks expects : -1.0 ... +1.0 float
+					buffer[i] = static_cast<float>(m_pcmBuffer[i] / 32768.0f);
+				}
+				// Zero-fill any remaining samples if EOF reached
+				for (size_t i = samplesRead; i < buffer.size(); i++)
+					buffer[i] = 0.0f;
+			}
+			else {
+				buffer.set(0.0f); // set silence
+			}
+
+			// For "Go to" time
+			m_frameSec = audioTime;
+			// Update the audio frame counter
+			m_audioFramesPlayed += buffer.getNumFrames();
+		}
+	}
+	else {
+		buffer.set(0.0f);
+	}
+}
+
 
 void ofApp::ApplyShaders()
 {
@@ -404,83 +576,31 @@ void ofApp::ApplyShaders()
 
 
 //--------------------------------------------------------------
-void ofApp::audioOut(ofSoundBuffer &buffer)
-{
-	// Do not process audio for menu selection,
-	// mouse click on the caption, or if paused
-	// or if no audio in the video file
-	if (bNCmousePressed || bPaused || !m_audioPipe) {
-		if(buffer.size() > 0)
-			buffer.set(0.0f); // silence
-		return;
-	}
-
-	//
-	// Read the next lot of audio frames from the file.
-	// This is a separate thread to Draw so the audio is not
-	// limited by the video rate. The number of bytes required
-	// by the audio callback and the PCM data buffer are
-	// established when soundstream is set up.
-	//
-	if (m_audioPipe && m_FramesRead > 0) { // wait until draw reads a frame
-		size_t bytesRead = fread(m_pcmBuffer.data(), 1, m_pcmBuffer.size()*sizeof(int16_t), m_audioPipe);
-		if (bytesRead == 0) {
-			// fread = 0 means the end of the file
-			// Let video read and start again
-			bReadVideo = true;
-			return;
-		}
-		else if (bytesRead > 0) {
-			// Sync video with audio
-			// Calculate the required video frame based on audio time
-			double audioTime = (double)m_audioFramesPlayed.load()/m_sampleRate;
-			long requiredFrame = (int)(audioTime*m_FrameRate);
-			if (requiredFrame > m_FramesRead) {
-				// Signal Draw to get the next video frame
-				bReadVideo = true;
-			}
-			// For the sound to come from the speakers
-			// Silence if mute or syncing video with audio
-			if (!bMute && !bVideoSync) {
-				size_t samplesRead = bytesRead / sizeof(int16_t);
-				for (size_t i = 0; i < samplesRead; i++) {
-					// A signed 16-bit sample ranges from : -32768 ... +32767
-					// OpenFrameworks expects : -1.0 ... +1.0 float
-					buffer[i] = static_cast<float>(m_pcmBuffer[i] / 32768.0f);
-				}
-				// Zero-fill any remaining samples if EOF reached
-				for (size_t i = samplesRead; i < buffer.size(); i++)
-					buffer[i] = 0.0f;
-			}
-			else {
-				buffer.set(0.0f); // set silence
-			}
-			// For "Go to" time
-			m_frameSec = audioTime;
-			// Update the audio frame counter
-			m_audioFramesPlayed += buffer.getNumFrames();
-		}
-	}
-	else {
-		buffer.set(0.0f);
-	}
-}
-
-//--------------------------------------------------------------
 void ofApp::exit()
 {
+	// Reset explorer window no-topmost if opened
+	SetExplorerTopmost("");
 	// Save adjust settings
 	adjust->GetControls();
 	adjust->Save("Adjust");
 	adjust->Close();
 	// Save menu settings
-	menu->Save("sender-video-audio", true);
+	menu->Save("spout-video-audio", true);
+
+	// Set the scale factor to the same ini file
+	std::string str = std::to_string(nScale);
+	WritePrivateProfileStringA((LPCSTR)"Options", (LPCSTR)"Scale", (LPCSTR)str.c_str(), (LPCSTR)m_inifile);
+
 	// Release FFmpeg resources
 	CloseFFmpeg();
 	// Release the sender
 	if (m_pixelBuffer) delete[] m_pixelBuffer;
 	m_pixelBuffer = nullptr;
 	sender.ReleaseSender();
+	// Release the NDI sender or discovery will still find it
+	// This also releases the audio data buffer
+	ndiSender.ReleaseSender();
+
 }
 
 //--------------------------------------------------------------
@@ -573,8 +693,8 @@ void ofApp::keycodePressed(ofKeyEventArgs& e)
 			}
 		}
 
-		// Copy - Ctrl-O
-		if ((e.keycode == 'o' || e.keycode == 'O') && menu->GetEnabled("Copy	Ctrl-O")) {
+		// Copy - Ctrl-C
+		if ((e.keycode == 'c' || e.keycode == 'C') && menu->GetEnabled("Copy	Ctrl-C")) {
 			if (!m_videopath.empty() && myTexture.isAllocated()) {
 				ofPixels myPixels;
 				myTexture.readToPixels(myPixels);
@@ -662,6 +782,7 @@ void ofApp::keycodePressed(ofKeyEventArgs& e)
 			if (m_pixelBuffer) delete[] m_pixelBuffer;
 			m_pixelBuffer = nullptr;
 			sender.ReleaseSender();
+			ndiSender.ReleaseSender();
 			// Clear the video path
 			m_videopath.clear();
 			// Start audio and draw
@@ -708,6 +829,20 @@ void ofApp::keyPressed(int key)
 //--------------------------------------------------------------
 void ofApp::mousePressed(int x, int y, int button)
 {
+	// Right mouse button full screen
+    if (button == 2 && !bPreview) {
+		bFullScreen = !bFullScreen;
+		doFullScreen(bFullScreen, bPreview);
+		return;
+    }
+
+	// Left mouse button above the control bar and icons
+	// Pause/Play
+	if (button == 0 && y < ofGetHeight()-icon_size-20) {
+		m_ctrlkey.keycode = 'p';
+		keycodePressed(m_ctrlkey);
+	}
+
 	// Mouse press on progress bar
 	int ypos = ofGetHeight()-15;
 	if (y >= ypos && y < ypos+10) {
@@ -750,7 +885,7 @@ void ofApp::mousePressed(int x, int y, int button)
 
 	// Icon 0 position
 	int xpos = 10;
-	ypos = ofGetHeight()-icon_size - 20;
+	ypos = ofGetHeight()-icon_size-20;
 
 	// 1/2 - pause/play - Ctrl-P
 	if (x > xpos && x <= (xpos + icon_size)
@@ -800,7 +935,6 @@ void ofApp::mousePressed(int x, int y, int button)
 		keycodePressed(m_ctrlkey);
 	}
 
-
 }
 
 //--------------------------------------------------------------
@@ -813,7 +947,7 @@ void ofApp::mouseMoved(int x, int y)
 
 		// Icon 0 position
 		int xpos = 10;
-		int ypos = ofGetHeight()-icon_size - 20;
+		int ypos = ofGetHeight()-icon_size-20;
 
 		// 1/2 - pause/play
 		if (x > xpos && x <= (xpos + icon_size)
@@ -1001,25 +1135,36 @@ bool ofApp::OpenFFmpeg(std::string filePath, double seconds)
 	// and audio can drift out of sync. Reduce the output width to 1280
 	// while preserving aspect ratio
 	//
-	if (bScale) { // Resize menu option
-		unsigned int width = 1280;
-		if (m_SenderWidth > width) {
-			// Calculate from m_SenderWidth/m_SenderHeight
-			m_SenderHeight = width * m_SenderHeight / m_SenderWidth;
-			m_SenderWidth = width;
-		}
+	unsigned int width = m_VideoWidth;
+	if(nScale == 0) width = m_VideoWidth;
+	if(nScale == 1) width = 1920;
+	if(nScale == 2) width = 1280;
+	if(nScale == 3) width =  640;
+	if (m_VideoWidth >= width) {
+		// Calculate from m_SenderWidth/m_SenderHeight
+		m_SenderHeight = width * m_SenderHeight / m_SenderWidth;
+		m_SenderWidth = width;
+	}
+	else {
+		m_SenderWidth = m_VideoWidth;
+		m_SenderHeight = m_VideoHeight;
+	}
+
+	// Re-scale the original video
+	if (nScale > 0) {
 		m_input += ",scale=";
 		m_input += to_string(m_SenderWidth);
 		m_input += ":";
 		m_input += to_string(m_SenderHeight);
 	}
+
 	// Specify BGRA pixel format to match the sender format.
 	m_input += " -f image2pipe -vcodec rawvideo -pix_fmt bgra -";
 	m_pipein = _popen(m_input.c_str(), "rb");
 	if (m_pipein) {
 		if (m_pixelBuffer) delete[] m_pixelBuffer;
-		unsigned int buffersize = m_SenderWidth * m_SenderHeight * 4;
-		m_pixelBuffer = new unsigned char[buffersize];
+		unsigned int psize = m_SenderWidth * m_SenderHeight * 4;
+		m_pixelBuffer = new unsigned char[psize];
 	}
 	else {
 		MessageBoxA(NULL, "FFmpeg open failed", "Warning", MB_OK | MB_TOPMOST);
@@ -1072,7 +1217,7 @@ bool ofApp::OpenFFmpeg(std::string filePath, double seconds)
 		else
 			menu->EnablePopupItem("Go to	Ctrl-G", false);
 		menu->EnablePopupItem("Adjust", true);
-		menu->EnablePopupItem("Copy	Ctrl-O", true);
+		menu->EnablePopupItem("Copy	Ctrl-C", true);
 		menu->EnablePopupItem("Capture	Ctrl-A", true);
 		menu->EnablePopupItem("Save	Ctrl-S", true);
 		return true;
@@ -1082,14 +1227,44 @@ bool ofApp::OpenFFmpeg(std::string filePath, double seconds)
 
 } // end OpenFFmpeg
 
-
 //--------------------------------------------------------------
 bool ofApp::OpenSender()
 {
 	// Stop audio and draw
 	bNCmousePressed = true;
-	
+
+	// Release Spout and NDI senders
 	sender.ReleaseSender();
+	ndiSender.ReleaseSender();
+
+	if (bNDI) {
+		// Create a new NDI sender
+		ndiSender.SetFrameRate(m_FrameRate); // NDI video frame rate
+		// Enable async sending because audio timing controls the video
+		// This also disables clock to video in CreateSender
+		ndiSender.SetAsync(true);
+		ndiSender.SetAudio(true);
+		// FFprobe returns the audio samplerate and number of channels
+		ndiSender.SetAudioSampleRate(m_sampleRate);
+		ndiSender.SetAudioChannels(m_nChannels);
+		int nSamples = 1024; // Starting value
+		ndiSender.SetAudioSamples(nSamples); // Set in audioOut
+		// FFmpeg pipe returns a byte array
+		// Set the audio type so that this data is sent using 16bit PCM:
+		ndiSender.SetAudioType(audio_frame_interleaved_16s_t); // int16_t*
+		// Create a sender with BGRA format to enable transparency
+		// or YUV format for optimum performance
+		if (bYUV)
+			ndiSender.SetFormat(NDIlib_FourCC_video_type_UYVY);
+		else
+			ndiSender.SetFormat(NDIlib_FourCC_video_type_BGRA);
+
+		// Create a sender now because audio is sent first
+		if (!ndiSender.CreateSender(m_SenderName, m_SenderWidth, m_SenderHeight)) {
+			printf("OpenSender : NDI CreateSender failed\n");
+			return false;
+		}
+	}
 
 	// Allocate a texture for read
 	readTexture.allocate(m_SenderWidth, m_SenderHeight, GL_RGBA);
@@ -1112,7 +1287,8 @@ bool ofApp::OpenSender()
 			settings.sampleRate = m_sampleRate;
 			settings.numOutputChannels = m_nChannels;
 			settings.numInputChannels = 0;
-			settings.bufferSize = 1024; // Can be adjusted
+			// Can be adjusted. Too high slows the video.
+			settings.bufferSize = 1024; 
 			if (soundStream.setup(settings)) {
 				// PCM data buffer used in audioOut
 				m_pcmBuffer.resize(settings.bufferSize * settings.numOutputChannels);
@@ -1156,7 +1332,7 @@ void ofApp::CloseFFmpeg()
 	else
 		menu->EnablePopupItem("Go to	Ctrl-G", false);
 	menu->EnablePopupItem("Adjust", false);
-	menu->EnablePopupItem("Copy	Ctrl-O", false);
+	menu->EnablePopupItem("Copy	Ctrl-C", false);
 	menu->EnablePopupItem("Capture	Ctrl-A", false);
 	menu->EnablePopupItem("Save	Ctrl-S", false);
 }
@@ -1246,7 +1422,7 @@ void ofApp::appMenuFunction(string title, bool bChecked)
 		}
 		else {
 			str = m_exePath;
-			str += "/data/videos/"; // LJ DEBUG
+			str += "/data/videos/";
 		}
 
 		// Does the video folder exist ?
@@ -1321,20 +1497,52 @@ void ofApp::appMenuFunction(string title, bool bChecked)
 	}
 
 	if (title == "Resize") {
-		bScale = bChecked;
-		// Release FFmpeg resources
-		// and close the video playing
-		CloseFFmpeg();
+		int selected = nScale;
+		std::vector<std::string> dim{ "None", "1920", "1280", "640"};
+		std::string str = "Maximum sender width";
+		if (m_VideoWidth > 0) {
+			str += " (video ";
+			str += std::to_string(m_VideoWidth);
+			str += " x ";
+			str += std::to_string(m_VideoHeight);
+			str += " )";
+		}
+		if (SpoutMessageBox(m_hWnd, NULL, str.c_str(), MB_OKCANCEL | MB_TOPMOST, dim, selected) == IDOK) {
+			if (selected != nScale) {
+				nScale = selected; // 0-3 "None", "1920", "1280", "640"
+				// Restart the same video
+				RestartVideo();
+				// Re-allocate read and draw textures
+				readTexture.allocate(m_SenderWidth, m_SenderHeight, GL_RGBA);
+				myTexture.allocate(m_SenderWidth, m_SenderHeight, GL_RGBA);
+			}
+		}
+	}
+
+	if (title == "Enable") {
+		bNDI = bChecked;
 		if (!m_videopath.empty()) {
-			// Release the sender
+			CloseFFmpeg();
 			if (m_pixelBuffer) delete[] m_pixelBuffer;
 			m_pixelBuffer = nullptr;
 			sender.ReleaseSender();
-			// Start again
+			ndiSender.ReleaseSender();
 			if(OpenVideo(m_videopath))
 				OpenSender();
 		}
 	}
+
+	if (title == "YUV") {
+		bYUV = bChecked;
+		if (bYUV)
+			ndiSender.SetFormat(NDIlib_FourCC_video_type_UYVY);
+		else
+			ndiSender.SetFormat(NDIlib_FourCC_video_type_BGRA);
+		// Restart the same video
+		RestartVideo();
+	}
+
+
 
 	//
 	// Menu items that are not auto-checked are
@@ -1357,8 +1565,8 @@ void ofApp::appMenuFunction(string title, bool bChecked)
 		keycodePressed(m_ctrlkey);
 	}
 
-	if (title == "Copy	Ctrl-O") {
-		m_ctrlkey.keycode = 'o';
+	if (title == "Copy	Ctrl-C") {
+		m_ctrlkey.keycode = 'c';
 		keycodePressed(m_ctrlkey);
 	}
 
@@ -1382,42 +1590,59 @@ void ofApp::appMenuFunction(string title, bool bChecked)
 		str += "        File > Video folder - open folder of the last video\n";
 		str += "        File > Image folder - open folder for image captures\n\n";
 		str += "        Output > Adjust - open adjust dialog\n";
-		str += "        Output > Go to (Ctrl-G) - go to position in seconds\n";
-		str += "        Output > Copy (Ctrl-O) - copy the current frame to the clipboard\n";
-		str += "        Output > Capture (Ctrl-A) - capture and save the current frame as timestamp image file\n";
-		str += "        Output > Save as (Ctrl-S) - save the current frame as an image file\n";
-		str += "        Output > Mute (Ctrl-M) - mute speakers\n";
 		str += "        Output > Resize - limit video to 1280 width (resets)\n";
-		str += "            FFmpeg pipe read (fread) can be slow with large images,\n";
-		str += "            typically 10-14 msec at 1920x1080 compared to 3-4 msec\n";
-		str += "            at 1280x720, and audio can drift out of sync. This option\n";
-		str += "            limits output width to 1280 while preserving aspect ratio.\n";
-		str += "            The output frame rate is also limited to 30fps and FFmpeg\n";
-		str += "            drops frames to keep that rate.\n\n";
+		str += "            FFmpeg pipe read (fread) can be slow with large images.\n";
+		str += "            This option limits output width to 1280 while preserving\n";
+		str += "            aspect ratio. The output frame rate is also limited to 30fps.\n";
+		str += "            If the video is faster, FFmpeg drops frames to keep that rate.\n";
+		str += "        Output > NDI\n";
+		str += "            Enable - activate NDI output\n";
+		str += "            YUV     - YUV format for optimum performance\n";
+		str += "                          or default BGRA to enable transparency\n";
+		str += "        Output > Copy (Ctrl-C) - copy the current frame to the clipboard\n";
+		str += "        Output > Capture (Ctrl-A) - capture and save a timestamp image file\n";
+		str += "        Output > Save as (Ctrl-S) - save the current frame as an image file\n";
+		str += "        Output > Go to (Ctrl-G) - go to position in seconds when paused\n";
+		str += "        Output > Mute (Ctrl-M) - mute system audio\n";
+		str += "            This is independent from NDI sender audio which will\n";
+		str += "            play if enabled by an NDI receiver. Mute should be\n";
+		str += "            enabled in that case to avoid duplicate audio sources.\n\n";
 		str += "        View > Show on top (Ctrl-T) - set window topmost\n";
 		str += "        View > Show controls (space bar) - show video controls\n";
 		str += "        View > Preview (Ctrl-V) - show minimal preview window\n";
 		str += "        View > Full screen (Ctrl-F) - show full screen (ESC to exit)\n\n";
 		str += "        Video player controls\n";
-		str += "            Ctrl-P - Pause / Play\n";
+		str += "            Ctrl-P - Pause / Play (Left mouse button)\n";
 		str += "            Ctrl-B - Beginning of the video\n";
 		str += "            Ctrl-X - Exit - stop and close\n";
 		str += "            Ctrl-E - End of the video\n";
-		str += "            Ctrl-F - Full screen\n";
-		str += "            Ctrl-M - Mute audio\n";
+		str += "            Ctrl-F - Full screen (Right mouse button)\n";
+		str += "            Ctrl-M - Mute system audio\n";
+		HICON hIcon =  adjust->LoadWindowsIcon(24);// Shell32 question icon
+		SpoutMessageBoxIcon(hIcon);
 		SpoutMessageBoxAllowCancel(); // Enable the caption close button
-		SpoutMessageBox(NULL, str.c_str(), "Options", MB_ICONINFORMATION | MB_OK | MB_TOPMOST);
+		SpoutMessageBox(NULL, str.c_str(), "Options", MB_OK | MB_TOPMOST);
 	}
 
 	if (title == "About") {
 
+		// NDI library version number (dll)
+		std::string NDIversion = ndiSender.GetNDIversion();
+		NDIversion = NDIversion.substr(NDIversion.length()-8, 8);
+
 		// Spout version
-		std::string about = "                       Spout video sender with audio\n";
+		std::string about = "              Spout and NDI sender with video and audio\n";
 		about += "                   using Openframeworks and FFmpeg\n";
-		about += "                                <a href=\"http://spout.zeal.co\">http://spout.zeal.co</a>\n";
-		about += "                            Spout Version ";
+		about += "                           Spout - Version ";
 		about += GetSDKversion();
-		about += "\n\n";
+		about += "\n";
+		about += "                                <a href=\"http://spout.zeal.co\">http://spout.zeal.co</a>\n";
+		// NDI credit
+		about += "                              NDI - Version ";
+		about += NDIversion;
+		about += "\n";
+		about += "                                 <a href=\"https://ndi.video\">https://ndi.video</a>\n";
+		about += "\n";
 
 		about += "      An example of a sender for video files using FFmpeg with\n";
 		about += "      two pipes, one for video and the other for audio.\n\n";
@@ -1434,18 +1659,20 @@ void ofApp::appMenuFunction(string title, bool bChecked)
 		about += "      Select the \"FFmpeg\" button below for more information\n";
 
 		// Icon in the caption rather than the dialog window
-		SpoutMessageBoxIconSmall();
+		SpoutMessageBoxIcon(m_hIconInfo); // Shell32 info icon
+		// SpoutMessageBoxIconSmall();
 		SpoutMessageBoxAllowCancel(); // Enable the caption close button
 		SpoutMessageBoxButton(1000, L"FFmpeg");
-		int iRet = SpoutMessageBox(NULL, about.c_str(), "About", MB_ICONINFORMATION | MB_OK | MB_TOPMOST);
+		int iRet = SpoutMessageBox(NULL, about.c_str(), "About", MB_OK | MB_TOPMOST);
 		if(iRet == 1000) {
 			// FFmpeg download instructions
 			// Keep the dialog open with "?noclose" in the url
 			// and topmost so that the instructions remain visible
 			// See ffdownloadstr()
 			std::string str = "Downloading FFmpeg\n\n" + ffdownloadstr();
+			SpoutMessageBoxIcon(m_hIconInfo); // Shell32 info icon
 			SpoutMessageBoxIconSmall();
-			SpoutMessageBox(NULL, str.c_str(), "FFmpeg", MB_ICONINFORMATION | MB_TOPMOST | MB_OK);
+			SpoutMessageBox(NULL, str.c_str(), "FFmpeg", MB_TOPMOST | MB_OK);
 		}
 
 	}
@@ -1662,8 +1889,8 @@ bool ofApp::ffprobe(std::string videoPath)
 
 	char tmp[MAX_PATH]{};
 	DWORD dwResult = 0;
-	m_SenderWidth = 0;
-	m_SenderHeight = 0;
+	m_VideoWidth = 0;
+	m_VideoHeight = 0;
 
 	// Find the first video stream
 	char stream[100]{};
@@ -1672,9 +1899,9 @@ bool ofApp::ffprobe(std::string videoPath)
 		if (GetPrivateProfileStringA((LPCSTR)stream, (LPSTR)"codec_type", (LPSTR)"0", (LPSTR)tmp, 8, initfile) > 0) {
 			if (strcmp(tmp, "video") == 0) {
 				if (GetPrivateProfileStringA((LPCSTR)stream, (LPSTR)"width", NULL, (LPSTR)tmp, 8, initfile) > 0)
-					m_SenderWidth = atoi(tmp);
+					m_VideoWidth = atoi(tmp);
 				if (GetPrivateProfileStringA((LPCSTR)stream, (LPSTR)"height", NULL, (LPSTR)tmp, 8, initfile) > 0)
-					m_SenderHeight = atoi(tmp);
+					m_VideoHeight = atoi(tmp);
 				if (GetPrivateProfileStringA((LPCSTR)stream, (LPSTR)"duration", NULL, (LPSTR)tmp, 10, initfile) > 0)
 					m_Duration = atof(tmp);
 				// Duration is in seconds
@@ -2002,6 +2229,7 @@ void ofApp::ShowInfo()
 
 	std::string totaltime = std::format("{:02}:{:02}", (int)(m_Duration/60.0), (int)(std::fmod(m_Duration, 60)));
 	if (!totaltime.empty()) {
+		// Time progress at lower right
 		double framesec = m_Duration*m_progress;
 		std::string frametime = std::format("{:02}:{:02}", (int)(framesec/60.0), (int)(std::fmod(framesec, 60)));
 		std::string str = frametime + " of " + totaltime;
@@ -2010,6 +2238,14 @@ void ofApp::ShowInfo()
 		int ypos = ofGetHeight()-23; // mid icons
 		ofSetColor(255);
 		myFont.drawString(str, xpos, ypos);
+
+		// Sender resolution at upper right
+		str = to_string(m_SenderWidth) + " x " + to_string(m_SenderHeight);
+		strwidth = myFont.stringWidth(str);
+		xpos = ofGetWidth() - strwidth-10;
+		ypos = 23;
+		myFont.drawString(str, xpos, ypos);
+
 	}
 }
 
@@ -2086,23 +2322,29 @@ void ofApp::SaveImageFile(std::string name)
 }
 
 //--------------------------------------------------------------
+// Find the explorer window with a caption matching the path
+// and set topmost. For no title, find the first explorer window
+// that is topmost and set it not-topmost (used in exit).
 bool ofApp::SetExplorerTopmost(std::string path)
 {
 	HWND hw = NULL;
 	int i = 0;
-	// Find the last occurrence of either '\' or '/')
-	size_t pos = path.find_last_of("\\/");
-	// Allow for a trailing backslash in the path
-	if (pos == path.size() - 1) {
-		path = path.substr(0, pos);
-		pos = path.find_last_of("\\/");
+	std::string s2;
+	if (!path.empty()) {
+		// Find the last occurrence of either '\' or '/')
+		size_t pos = path.find_last_of("\\/");
+		// Allow for a trailing backslash in the path
+		if (pos == path.size() - 1) {
+			path = path.substr(0, pos);
+			pos = path.find_last_of("\\/");
+		}
+		// Find the folder name (explorer caption)
+		// If no '\' or '/' is found, use the whole path string.
+		// Otherwise, use the substring after the final path separator.
+		s2 = (pos == std::string::npos) ? path : path.substr(pos + 1);
 	}
-	// Find the folder name (explorer caption)
-	// If no '\' or '/' is found, use the whole path string.
-	// Otherwise, use the substring after the final path separator.
-	std::string s2 = (pos == std::string::npos) ? path : path.substr(pos+1);
+	// A loop is needed or the window isn't found
 	if (!s2.empty()) {
-		// A loop is needed or the window isn't found
 		do {
 			hw = FindWindowA("CabinetWClass", s2.c_str());
 			Sleep(50);
@@ -2115,13 +2357,46 @@ bool ofApp::SetExplorerTopmost(std::string path)
 			// Position half way down the app window
 			RECT rect{};
 			GetWindowRect(m_hWnd, &rect);
-			int xpos = rect.left-(rect.right-rect.left)/2;
-			int ypos = rect.top+(rect.bottom-rect.top)/2;
-			SetWindowPos(hw, HWND_TOPMOST, xpos, ypos, 0, 0, SWP_NOSIZE | SWP_SHOWWINDOW);
+			int xpos = rect.left - (rect.right - rect.left) / 2;
+			int ypos = rect.top + (rect.bottom - rect.top) / 2;
+			SetWindowPos(hw, HWND_TOPMOST, xpos, ypos, 0, 0,
+				SWP_ASYNCWINDOWPOS | SWP_NOSIZE | SWP_SHOWWINDOW);
+			// Sometimes SetWindowPos fails - unknown reason
+			BringWindowToTop(hw);
+			SetForegroundWindow(hw);
+			SetActiveWindow(hw);
+			SetFocus(hw);
 			return true;
+		}
+	}
+	else {
+		// No title, get the first topmost window and
+		// set not-topmost if an explorer window
+		HWND hwnd = GetTopWindow(nullptr);
+		while (hwnd) {
+			if (GetWindowLongPtr(hwnd, GWL_EXSTYLE) & WS_EX_TOPMOST) {
+				char className[256]{};
+				GetClassNameA(hwnd, className, 256);
+				if (strcmp(className, "CabinetWClass") == 0) {
+					// Found topmost explorer window
+					SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0,
+						SWP_ASYNCWINDOWPOS | SWP_NOSIZE | SWP_NOMOVE | SWP_SHOWWINDOW);
+					return true;
+				}
+			}
+	        hwnd = GetWindow(hwnd, GW_HWNDNEXT);
 		}
 	}
 	return false;
 }
+
+void ofApp::StartWait(void) {
+	hcurSave = SetCursor(LoadCursor(NULL, IDC_WAIT));
+}
+
+void ofApp::EndWait(void) {
+	SetCursor(hcurSave);
+}
+
 
 // ... the end

@@ -75,6 +75,9 @@
     <IntDir>obj\$(Platform)\$(Configuration)\</IntDir>
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
+  <PropertyGroup Label="Vcpkg">
+    <VcpkgEnabled>false</VcpkgEnabled>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64' or '$(Configuration)|$(Platform)'=='Debug|ARM64' or '$(Configuration)|$(Platform)'=='Debug|ARM64EC'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
@@ -127,7 +130,7 @@
       <PreprocessorDefinitions>%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
-      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);src</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);src;..\..\..\addons\ofxNDI\src;..\..\..\addons\ofxNDI\libs\NDI\include;..\..\..\addons\ofxWinMenu\src;..\..\..\addons\ofxWinDialog\src</AdditionalIncludeDirectories>
       <CompileAs>CompileAsCpp</CompileAs>
       <ObjectFileName>$(IntDir)\Build\%(RelativeDir)\$(Configuration)\</ObjectFileName>
       <LanguageStandard>stdcpplatest</LanguageStandard>
@@ -226,13 +229,47 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="src\addons\ofxWinDialog\src\ofxWinDialog.cpp" />
-    <ClCompile Include="src\addons\ofxWinMenu\src\ofxWinMenu.cpp" />
+    <ClCompile Include="..\..\..\addons\ofxNDI\src\ofxNDIdynloader.cpp" />
+    <ClCompile Include="..\..\..\addons\ofxNDI\src\ofxNDIreceive.cpp" />
+    <ClCompile Include="..\..\..\addons\ofxNDI\src\ofxNDIreceiver.cpp" />
+    <ClCompile Include="..\..\..\addons\ofxNDI\src\ofxNDIsend.cpp" />
+    <ClCompile Include="..\..\..\addons\ofxNDI\src\ofxNDIsender.cpp" />
+    <ClCompile Include="..\..\..\addons\ofxNDI\src\ofxNDIutils.cpp" />
+    <ClCompile Include="..\..\..\addons\ofxWinDialog\src\ofxWinDialog.cpp" />
+    <ClCompile Include="..\..\..\addons\ofxWinMenu\src\ofxWinMenu.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\ofApp.cpp" />
     <ClCompile Include="src\SpoutShaders.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\..\addons\ofxNDI\libs\NDI\include\Processing.NDI.compat.h" />
+    <ClInclude Include="..\..\..\addons\ofxNDI\libs\NDI\include\Processing.NDI.deprecated.h" />
+    <ClInclude Include="..\..\..\addons\ofxNDI\libs\NDI\include\Processing.NDI.DynamicLoad.h" />
+    <ClInclude Include="..\..\..\addons\ofxNDI\libs\NDI\include\Processing.NDI.Find.h" />
+    <ClInclude Include="..\..\..\addons\ofxNDI\libs\NDI\include\Processing.NDI.FrameSync.h" />
+    <ClInclude Include="..\..\..\addons\ofxNDI\libs\NDI\include\Processing.NDI.Lib.cplusplus.h" />
+    <ClInclude Include="..\..\..\addons\ofxNDI\libs\NDI\include\Processing.NDI.Lib.h" />
+    <ClInclude Include="..\..\..\addons\ofxNDI\libs\NDI\include\Processing.NDI.Recv.ex.h" />
+    <ClInclude Include="..\..\..\addons\ofxNDI\libs\NDI\include\Processing.NDI.Recv.h" />
+    <ClInclude Include="..\..\..\addons\ofxNDI\libs\NDI\include\Processing.NDI.RecvAdvertiser.h" />
+    <ClInclude Include="..\..\..\addons\ofxNDI\libs\NDI\include\Processing.NDI.RecvListener.h" />
+    <ClInclude Include="..\..\..\addons\ofxNDI\libs\NDI\include\Processing.NDI.Routing.h" />
+    <ClInclude Include="..\..\..\addons\ofxNDI\libs\NDI\include\Processing.NDI.Send.h" />
+    <ClInclude Include="..\..\..\addons\ofxNDI\libs\NDI\include\Processing.NDI.SendAdvertiser.h" />
+    <ClInclude Include="..\..\..\addons\ofxNDI\libs\NDI\include\Processing.NDI.SendListener.h" />
+    <ClInclude Include="..\..\..\addons\ofxNDI\libs\NDI\include\Processing.NDI.structs.h" />
+    <ClInclude Include="..\..\..\addons\ofxNDI\libs\NDI\include\Processing.NDI.utilities.h" />
+    <ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDI.h" />
+    <ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDIdynloader.h" />
+    <ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDIplatforms.h" />
+    <ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDIreceive.h" />
+    <ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDIreceiver.h" />
+    <ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDIsend.h" />
+    <ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDIsender.h" />
+    <ClInclude Include="..\..\..\addons\ofxNDI\src\ofxNDIutils.h" />
+    <ClInclude Include="..\..\..\addons\ofxNDI\src\sse2neon.h" />
+    <ClInclude Include="..\..\..\addons\ofxWinDialog\src\ofxWinDialog.h" />
+    <ClInclude Include="..\..\..\addons\ofxWinMenu\src\ofxWinMenu.h" />
     <ClInclude Include="libs\include\Spout.h" />
     <ClInclude Include="libs\include\SpoutCommon.h" />
     <ClInclude Include="libs\include\SpoutCopy.h" />
@@ -245,9 +282,8 @@
     <ClInclude Include="libs\include\SpoutSenderNames.h" />
     <ClInclude Include="libs\include\SpoutSharedMemory.h" />
     <ClInclude Include="libs\include\SpoutUtils.h" />
-    <ClInclude Include="src\addons\ofxWinDialog\src\ofxWinDialog.h" />
-    <ClInclude Include="src\addons\ofxWinMenu\src\ofxWinMenu.h" />
     <ClInclude Include="src\ofApp.h" />
+    <ClInclude Include="src\resource.h" />
     <ClInclude Include="src\SpoutShaders.h" />
   </ItemGroup>
   <ItemGroup>
@@ -256,10 +292,7 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="icon.rc">
-      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64' or '$(Configuration)|$(Platform)'=='Debug|ARM64' or '$(Configuration)|$(Platform)'=='Debug|ARM64EC'">/D_DEBUG %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalIncludeDirectories>$(OF_ROOT)\libs\openFrameworksCompiled\project\vs</AdditionalIncludeDirectories>
-    </ResourceCompile>
+    <ResourceCompile Include="src\resource.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ProjectExtensions>

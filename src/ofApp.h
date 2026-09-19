@@ -21,8 +21,14 @@
 #pragma once
 
 #include "ofMain.h"
-#include "addons/ofxWinMenu/src/ofxWinMenu.h" // Windows menu
-#include "addons/ofxWinDialog/src/ofxWinDialog.h" // Adjust dialog
+
+// User installed addons
+// See Project > Properties
+#include "ofxWinMenu.h" // Windows menu
+#include "ofxWinDialog.h" // Adjust dialog
+#include "ofxNDI.h" // ofxNDI classes
+#include "resource.h" // for the custom icon
+
 #include "SpoutShaders.h" // Compute shaders
 #include "../libs/include/Spout.h" // For Spout library
 #include <format> // for time display
@@ -53,10 +59,10 @@ class ofApp : public ofBaseApp{
 		HINSTANCE m_hInstance = nullptr;
 		HWND m_hWnd = nullptr;
 		HICON m_hIcon = nullptr;
+		HICON m_hIconInfo = nullptr;
 		ofxWinMenu* menu = nullptr; // Menu object
 		void appMenuFunction(std::string title, bool bChecked); // Menu callback function
 		bool bMute = false;
-		bool bScale = true;
 		bool bPaused = false;
 		bool bPosition = false;
 		bool bRestart = false;
@@ -65,17 +71,22 @@ class ofApp : public ofBaseApp{
 		bool bFullScreen = false;
 		bool bPreview = false;
 		bool bShowInfo = true;
-
+		unsigned int nScale = 2; // 1280 default
+		char m_inifile[MAX_PATH]{};
+		
 		// To detect control keys
 		void keycodePressed(ofKeyEventArgs& e);
 		ofKeyEventArgs m_ctrlkey{};
 		bool bKeyReleased = true;
 
 		// Sender
-		Spout sender;  // Sender object
-		char m_SenderName[256]{}; // Sender name
-		unsigned int m_SenderWidth = 1280; // Sender width (video width)
-		unsigned int m_SenderHeight = 720; // Sender height (video height)
+		Spout sender;                      // Spout sender
+		ofxNDIsender ndiSender;            // NDI sender
+		char m_SenderName[256]{};          // Sender name
+		unsigned int m_SenderWidth = 1280; // Sender width
+		unsigned int m_SenderHeight = 720; // Sender height
+		bool bNDI = false;                 // NDI output
+		bool bYUV = false;                 // YUV texture or BGRA pixels 
 
 		// FFmpeg
 		std::string m_exePath;           // Executable location
@@ -87,6 +98,8 @@ class ofApp : public ofBaseApp{
 		double m_Duration = 0.0;         // Video duration
 		long m_Frames = 0;               // Total number of frames
 		long m_FramesRead = 0;           // Number of frames read after pause
+		unsigned int m_VideoWidth = 0;   // Video width
+		unsigned int m_VideoHeight = 0;  // Video height
 		double m_progress = 0;           // Progress bar position
 
 		FILE *m_pipein = nullptr;        // Pipe for FFmpeg video
@@ -97,7 +110,7 @@ class ofApp : public ofBaseApp{
 		// Audio
 		std::string m_audioInput;         // Input string to FFmpeg audio
 		FILE* m_audioPipe = nullptr;      // Audio pipe
-		float* m_audiodata = nullptr;     // Audio data
+
 		std::vector<int> m_audioSequence; // Sequence of sample numbers per frame
 		std::vector<char> m_audioBuffer;  // The audio buffer used in audioOut TODO
 		std::vector<int16_t> m_pcmBuffer; // PCM data buffer used in audioOut
@@ -125,7 +138,14 @@ class ofApp : public ofBaseApp{
 		std::string ffdownloadstr(); // FFmpeg download string for messagebox
 		std::string EnterFileName(); // File dialog with more options that Openframeworks
 		void SaveImageFile(std::string name); // For Capture or Save as
-		bool SetExplorerTopmost(std::string folderpath); // To bring a folder view topmost
+
+		// To bring a folder view topmost
+		bool SetExplorerTopmost(std::string folderpath);
+
+		// Hourglass cursor
+		void StartWait(void);
+		void EndWait(void);
+		HCURSOR hcurSave = nullptr;
 
 		// Full screen
 		void doFullScreen(bool bEnable, bool bPreview = false);
