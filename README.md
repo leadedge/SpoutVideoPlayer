@@ -2,29 +2,27 @@
 
 A version  of SpoutVideoPlayer using FFmpeg instead of the Openframeworks ofVideoPlayer class.
 
-This project started as an example for the Spout SDK, but has evolved to create a \
+This project started as an example for the Spout SDK, but has evolved to create a 
 practical video player with transparency for both Spout and NDI output.
-
-Due to the additional complexity over a typical example, the project is hosted as\
+Due to the additional complexity over a typical example, the project is hosted as
 a branch of "Spout Video Player" rather than example code within the Spout SDK.
 
-Two pipes are created, one for video and the other for audio. \
-This is a simple method compared to using FFmpeg libraries \
-and supports alpha channel transparency if the video file encoder\
-supports it, such as VP9, HapAlpha and ProRes4444.
+Two pipes are created, one for video and the other for audio. 
+This is a simple method compared to using FFmpeg libraries and supports
+alpha channel transparency if the video file encoder supports it, such as VP9, HapAlpha and ProRes4444.
 
-ofSoundStream and audioOut enable sound output and Draw is kept in sync with audio by timing\
-and and frame count matching. Seeking is achieved by specifying the start time for pipe read.\
+ofSoundStream and audioOut enable sound output and Draw is kept in sync with audio by timing
+and and frame count matching. Seeking is achieved by specifying the start time for pipe read.
 Performance varies depending on the encoder used for the video.
 	
-The [ofxWinMenu](https://github.com/leadedge/ofxWinMenu) addon is used to create a menu and manage caption mouse press.\
-The [ofxWinDialog](https://github.com/leadedge/ofxWinDialog) addon is used to create an image adjust dialog.\
+The [ofxWinMenu](https://github.com/leadedge/ofxWinMenu) addon is used to create a menu and manage caption mouse press.
+[ofxWinDialog](https://github.com/leadedge/ofxWinDialog) is used to create an image adjust dialog.
 A static library is used for Spout functions and is included in the project.
 
 ### FFmpeg.exe and FFprobe.exe are required
 
-Refer to data/ffmpeg/readme.md\. Further information\
-on program functions is available in Help > About > Options.
+Refer to *data/ffmpeg/readme.md*.\
+Further information on program functions is available in *Help > About > Options*.
 
 ### The code can be used for reference :
 
