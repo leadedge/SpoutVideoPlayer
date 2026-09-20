@@ -2,9 +2,11 @@
 
 A version  of SpoutVideoPlayer using FFmpeg instead of the Openframeworks ofVideoPlayer class.
 
-This project started as an example for the Spout SDK, but has been extended to create a \
-practical video player. Due to the additional complexity, the project is hosted as a branch \
-of "Spout Video Player" rather than example code within the Spout SDK.
+This project started as an example for the Spout SDK, but has evolved to create a \
+practical video player with transparency for both Spout and NDI output.
+
+Due to the additional complexity over a typical example, the project is hosted as\
+a branch of "Spout Video Player" rather than example code within the Spout SDK.
 
 Two pipes are created, one for video and the other for audio. \
 This is a simple method compared to using FFmpeg libraries \
@@ -15,12 +17,16 @@ ofSoundStream and audioOut enable sound output and Draw is kept in sync with aud
 and and frame count matching. Seeking is achieved by specifying the start time for pipe read.\
 Performance varies depending on the encoder used for the video.
 	
-Uses the ofxWinMenu addon https://github.com/leadedge/ofxWinMenu to create a menu and manage\
-caption mouse press and the ofxWinDialog addon https://github.com/leadedge/ofxWinDialog \
-to create an image adjust dialog. The source is included within this project for convenience.\
-The project also uses a static library for Spout functions.
+The [ofxWinMenu](https://github.com/leadedge/ofxWinMenu) addon is used to create a menu and manage caption mouse press.\
+The [ofxWinDialog](https://github.com/leadedge/ofxWinDialog) addon is used to create an image adjust dialog.\
+A static library is used for Spout functions and is included in the project.
 
-The code can be used for reference :
+### FFmpeg.exe and FFprobe.exe are required
+
+Refer to data/ffmpeg/readme.md\. Further information\
+on program functions is available in Help > About > Options.
+
+### The code can be used for reference :
 
 - ofxWinMenu to create a window menu
 - ofxWinDialog to create a dialog
@@ -39,10 +45,7 @@ The code can be used for reference :
 - Using a Spout static library generated using Cmake
 - SetSenderName, SendImage, LoadTexturePixels and ReleaseSender
 - Utility OpenSpoutConsole and SpoutMessageBox functions
-
-FFmpeg.exe and FFprobe.exe are required. Refer to data/ffmpeg/readme.md\
-Information on program functions is available in Help > About > Options.
-
+ 
 ### Compiling
 
 The project is for Openframeworks and the folder structure must be :
