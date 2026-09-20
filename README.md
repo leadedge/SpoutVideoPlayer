@@ -40,11 +40,32 @@ The code can be used for reference :
 - SetSenderName, SendImage, LoadTexturePixels and ReleaseSender
 - Utility OpenSpoutConsole and SpoutMessageBox functions
 
-FFmpeg.exe and FFprobe.exe are required. Refer to data/ffmpeg/readme.md
-
+FFmpeg.exe and FFprobe.exe are required. Refer to data/ffmpeg/readme.md\
 Information on program functions is available in Help > About > Options.
 
+### Compiling
 
+The project is for Openframeworks and the folder structure must be :
+
+Openframeworks\
+&emsp;Addons\
+&emsp;&emsp;ofxNDI\
+&emsp;&emsp;ofxWinDialog\
+&emsp;&emsp;ofxWinMenu\
+&emsp;Apps\
+&emsp;&emsp;MyApps\
+&emsp;&emsp;&emsp;SpoutVideoAudio\
+&emsp;&emsp;&emsp;&emsp;src\
+&emsp;&emsp;&emsp;&emsp;libs\
+&emsp;&emsp;&emsp;&emsp;&emsp;include\
+&emsp;&emsp;&emsp;&emsp;bin\
+&emsp;&emsp;&emsp;&emsp;&emsp;data\
+&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;ffmpeg\
+&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;fonts\
+&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;icons\
+&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;images\
+&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;videos\
+&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;rgba2yuv
 
 
 
