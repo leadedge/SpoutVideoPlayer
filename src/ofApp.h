@@ -86,7 +86,8 @@ class ofApp : public ofBaseApp{
 		unsigned int m_SenderWidth = 1280; // Sender width
 		unsigned int m_SenderHeight = 720; // Sender height
 		bool bNDI = false;                 // NDI output
-		bool bYUV = false;                 // YUV texture or BGRA pixels 
+		bool bYUV = false;                 // YUV texture or BGRA pixels
+		bool bSized = false;
 
 		// FFmpeg
 		std::string m_exePath;           // Executable location

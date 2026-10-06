@@ -1,6 +1,8 @@
 /*
 
-	Spout OpenFrameworks Video/Audio Sender example
+	VideoAudioPlayer
+
+	Spout OpenFrameworks Video/Audio Sender
 
 	This project is extended over a typical example to create a
 	video player using FFmpeg. Due to the additional complexity,
@@ -56,7 +58,7 @@
 			   Save/restore item states in a menu initialization file
 			   Add SetExplorerTopmost to show video and image folders
 			   Release update
-	09.88.26 - Right mouse button, full screen
+	09.08.26 - Right mouse button, full screen
 			   Left mouse button above the control bar and icons, Pause/Play
 	11.08.26 - Add NDI send for video and audio
 	12.08.26 - Extract the Information icon from Shell32.dll
@@ -70,6 +72,16 @@
 	20.08.26 - Add resource.rc/resource.rc instead of Openframeworks icon.rc
 			   for custom icon and version information resources
 	10.09.26 - Rebuild (/MD to use RtAudio) Version 3.0.0.1
+	05.10.26 - Change "Resize" menu option to "Scale"
+			   Add "Size to video" menu option
+			   ResetWindow - allow for videos exceeding the screen dimensions
+			   Add "@echo off" in the ffprobe batch file "probe.bat"
+			   Re-make icon image for better resolution
+			   Update Mute icon
+			   Update Spout library to version 2.007.018
+			   Change project name from SpoutVideoAudio to VideoAudioPlayer
+	06.10.26 - Rebuild /MD Version 3.0.0.2
+
 
 	Copyright (C) 2026 Lynn Jarvis.
 
@@ -150,9 +162,6 @@ void ofApp::setup(){
 	// Extract the Information icon from Shell32.dll
 	// to avoid the MessageBeep sound
 	m_hIconInfo = adjust->LoadWindowsIcon(16783);
-	// LJ DEBUG
-	// Not working
-	// m_hIconInfo = adjust->ExtractWindowsIcon(16783);
 
 	// Disable Openframeworks escape key exit
 	// for fullscreen (see keyPressed)
@@ -186,7 +195,8 @@ void ofApp::setup(){
 	hPopup = menu->AddPopupMenu(hMenu, "Output");
 	menu->AddPopupItem(hPopup, "Adjust", false, false);
 	nScale = 2; // 1280 default
-	menu->AddPopupItem(hPopup, "Resize", false, false);
+	menu->AddPopupItem(hPopup, "Scale", false, false);
+	menu->AddPopupItem(hPopup, "Size to video", false, true); // bChecked, bAutoCheck
 	HMENU hSub = menu->AddPopupMenu(hPopup, "NDI");
 	bNDI = false; // default
 	menu->AddPopupItem(hSub, "Enable", bNDI);
@@ -235,7 +245,7 @@ void ofApp::setup(){
 	
 	// Adjust window for the starting client size (in main.cpp)
 	// allowing for a menu and centre on the screen
-	ResetWindow(ofGetWidth(), ofGetHeight());
+	ResetWindow(640, 360);
 
 	// Set the menu to the window after adjusting the size
 	menu->SetWindowMenu();
@@ -407,10 +417,19 @@ void ofApp::draw()
 
 	// Do not draw if iconic
 	if (!IsIconic(ofGetWin32Window()) && myTexture.isAllocated()) {
+
 		// Draw the result fitted to the display window
 		// Adjust height from video aspect ratio
 		int width = ofGetWidth();
 		int height = width*m_SenderHeight/m_SenderWidth;
+
+		// Reset to fit the video if checked
+		// Only done once when the video size changes
+		if (bSized && !bPreview && !bFullScreen
+		&& (width != m_SenderWidth || height != m_SenderHeight)) {
+			ResetWindow(m_SenderWidth, m_SenderHeight);
+		}
+
 		int ypos = (ofGetHeight()-height)/2;
 		myTexture.draw(0, ypos, width, height);
 		// Key shortcuts
@@ -801,6 +820,10 @@ void ofApp::keycodePressed(ofKeyEventArgs& e)
 				hwndAdjust = nullptr;
 			}
 			menu->EnablePopupItem("Adjust", false);
+
+			// Video closed
+			ResetWindow(640, 360);
+
 		}
 
 	} // endif control keys
@@ -1220,6 +1243,7 @@ bool ofApp::OpenFFmpeg(std::string filePath, double seconds)
 		menu->EnablePopupItem("Copy	Ctrl-C", true);
 		menu->EnablePopupItem("Capture	Ctrl-A", true);
 		menu->EnablePopupItem("Save	Ctrl-S", true);
+
 		return true;
 	}
 	else
@@ -1335,6 +1359,7 @@ void ofApp::CloseFFmpeg()
 	menu->EnablePopupItem("Copy	Ctrl-C", false);
 	menu->EnablePopupItem("Capture	Ctrl-A", false);
 	menu->EnablePopupItem("Save	Ctrl-S", false);
+
 }
 
 //--------------------------------------------------------------
@@ -1496,7 +1521,7 @@ void ofApp::appMenuFunction(string title, bool bChecked)
 		}
 	}
 
-	if (title == "Resize") {
+	if (title == "Scale") {
 		int selected = nScale;
 		std::vector<std::string> dim{ "None", "1920", "1280", "640"};
 		std::string str = "Maximum sender width";
@@ -1517,6 +1542,14 @@ void ofApp::appMenuFunction(string title, bool bChecked)
 				myTexture.allocate(m_SenderWidth, m_SenderHeight, GL_RGBA);
 			}
 		}
+	}
+
+	if (title == "Size to video") {
+		bSized = bChecked;
+		if (m_pipein && bSized)
+			ResetWindow(m_SenderWidth, m_SenderHeight);
+		else
+			ResetWindow(640, 360);
 	}
 
 	if (title == "Enable") {
@@ -1590,11 +1623,12 @@ void ofApp::appMenuFunction(string title, bool bChecked)
 		str += "        File > Video folder - open folder of the last video\n";
 		str += "        File > Image folder - open folder for image captures\n\n";
 		str += "        Output > Adjust - open adjust dialog\n";
-		str += "        Output > Resize - limit video to 1280 width (resets)\n";
+		str += "        Output > Scale - limit video to 1280 width (resets)\n";
 		str += "            FFmpeg pipe read (fread) can be slow with large images.\n";
 		str += "            This option limits output width to 1280 while preserving\n";
 		str += "            aspect ratio. The output frame rate is also limited to 30fps.\n";
 		str += "            If the video is faster, FFmpeg drops frames to keep that rate.\n";
+		str += "        Output > Size to video - size window to video dimensions\n";
 		str += "        Output > NDI\n";
 		str += "            Enable - activate NDI output\n";
 		str += "            YUV     - YUV format for optimum performance\n";
@@ -1644,8 +1678,8 @@ void ofApp::appMenuFunction(string title, bool bChecked)
 		about += "                                 <a href=\"https://ndi.video\">https://ndi.video</a>\n";
 		about += "\n";
 
-		about += "      An example of a sender for video files using FFmpeg with\n";
-		about += "      two pipes, one for video and the other for audio.\n\n";
+		about += "      A sender for video files using FFmpeg with two pipes,\n";
+		about += "      one for video and the other for audio.\n\n";
 		about += "      ofSoundStream and audioOut enable sound output and Draw is\n";
 		about += "      kept in sync with audio by timing and and frame count matching.\n";
 		about += "      This is a simple method compared to using FFmpeg libraries.\n";
@@ -1841,7 +1875,10 @@ bool ofApp::ffprobe(std::string videoPath)
 				return false;
 			}
 			// File created OK
-			std::string str = "%~dp0/ffprobe.exe -v error -show_streams -of default=noprint_wrappers=1:nokey=1 -print_format ini -i %1 > \"%~dp0/myprobe.ini\"\n";
+			// -show_log
+			// -loglevel quiet
+			// std::string str = "%~dp0/ffprobe.exe -v error -show_streams -of default=noprint_wrappers=1:nokey=1 -print_format ini -i %1 > \"%~dp0/myprobe.ini\"\n";
+			std::string str = "%~dp0/ffprobe.exe -v quiet -show_streams -of default=noprint_wrappers=1:nokey=1 -print_format ini -i %1 > \"%~dp0/myprobe.ini\"\n";
 			batchfile << str;
 			batchfile.close();
 		}
@@ -1853,6 +1890,7 @@ bool ofApp::ffprobe(std::string videoPath)
 
 		// In the batch file, %~dp0 returns the Drive and Path to the batch script
 
+		// LJ DEBUG
 		// Open ffprobe and wait for completion
 		STARTUPINFOA si = { sizeof(STARTUPINFOA) };
 		si = { sizeof(STARTUPINFOA) };
@@ -1980,26 +2018,36 @@ bool ofApp::ffprobe(std::string videoPath)
 // Reset the window size
 void ofApp::ResetWindow(int windowWidth, int windowHeight)
 {
+	// Allow for videos exceeding the screen dimensions
+	int width = windowWidth;
+	int height = windowHeight;
+	if(width > ofGetScreenWidth())
+		width = ofGetScreenHeight();
+	if(height >	ofGetScreenHeight() - (GetSystemMetrics(SM_CYMENU) - GetSystemMetrics(SM_CYCAPTION)))
+		height = ofGetScreenHeight();
+	// LJ DEBUG
+	// height -= GetSystemMetrics(SM_CYBORDER)*2;
+
 	// Adjust window to desired client size allowing for the menu
 	RECT rect{};
 	rect.left   = 0;
 	rect.top    = 0;
-	rect.right  = windowWidth;
-	rect.bottom = windowHeight;
+	rect.right  = width;
+	rect.bottom = height;
 	AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW | WS_BORDER, true);
 
 	// Full window size
-	windowWidth  = rect.right - rect.left;
-	windowHeight = rect.bottom - rect.top;
+	width  = rect.right - rect.left;
+	height = rect.bottom - rect.top;
 
 	// Get current position
 	GetWindowRect(m_hWnd, &rect);
 
 	// Set size and centre on the screen
 	SetWindowPos(m_hWnd, NULL,
-		(ofGetScreenWidth() - windowWidth)/2,
-		(ofGetScreenHeight() - windowHeight)/2,
-		windowWidth, windowHeight, SWP_SHOWWINDOW);
+		(ofGetScreenWidth()  - width)/2,
+		(ofGetScreenHeight() - height)/2,
+		width, height, SWP_SHOWWINDOW);
 
 }
 
@@ -2072,18 +2120,16 @@ void ofApp::doFullScreen(bool bEnable, bool bPreviewMode)
 			} while (hwndTopmost != NULL); // hwndTopmost is NULL if GetNextWindow finds no more windows
 		}
 
-		// Get the client/window adjustment values
+		// Get and save the client/window adjustment values
 		GetWindowRect(m_hWnd, &m_windowRect);
 		GetClientRect(m_hWnd, &m_clientRect);
+
 		m_AddX = (m_windowRect.right - m_windowRect.left) - (m_clientRect.right - m_clientRect.left);
 		m_AddY = (m_windowRect.bottom - m_windowRect.top) - (m_clientRect.bottom - m_clientRect.top);
+
 		// Current client window size for return to windowed
 		m_nonFullScreenX = ofGetWidth();
 		m_nonFullScreenY = ofGetHeight();
-
-		// Save current size values
-		GetWindowRect(m_hWnd, &m_windowRect);
-		GetClientRect(m_hWnd, &m_clientRect);
 
 		// Current window style
 		m_dwStyle = GetWindowLongPtrA(m_hWnd, GWL_STYLE);

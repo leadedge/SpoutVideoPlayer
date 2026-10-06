@@ -45,7 +45,11 @@
 #endif
 
 
+// To avoid re-definition errors
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
+
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h> // the first windows.h include
 #include <stdio.h> // for console
@@ -55,9 +59,10 @@
 #include <io.h> // for _access
 #include <direct.h> // for _getcwd
 #include <vector>
-#include <string>
+#include <string> // for string functions
+#include <string.h> // for memcpy
+#include <cstring> // for std::memcpy
 #include <stdint.h> // for _uint32 etc
-
 #include <shellapi.h> // for shellexecute and LoadIconMetric
 #include <commctrl.h> // For TaskDialogIndirect
 #include <math.h> // for round
@@ -334,8 +339,8 @@ namespace spoututils {
 	// System menu 'X' close button for an application window
 	void SPOUT_DLLEXP EnableWindowClose(HWND hwnd, bool bKeys = true, bool bSystem = true);
 
-	// Extract an icon from a Windows dll (default Shell32.dll) 
-	HICON SPOUT_DLLEXP ExtractWindowsIcon(int iconNumber, const char* dllName = nullptr);
+	// Extract an icon from a Windows dll (default Shell32.dll)
+	HICON SPOUT_DLLEXP ExtractWindowsIcon(int iconNumber, const char* dllName = nullptr, int width = 0, int height = 0);
 
 	//
 	// Registry utilities
