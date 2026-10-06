@@ -1,4 +1,4 @@
-# SpoutVideoAudio
+# VideoAudioPlayer
 
 A version  of SpoutVideoPlayer using FFmpeg instead of the Openframeworks ofVideoPlayer class.
 
@@ -55,7 +55,7 @@ Openframeworks\
 &emsp;&emsp;ofxWinMenu\
 &emsp;Apps\
 &emsp;&emsp;MyApps\
-&emsp;&emsp;&emsp;SpoutVideoAudio\
+&emsp;&emsp;&emsp;VideoAudioPlayer\
 &emsp;&emsp;&emsp;&emsp;src\
 &emsp;&emsp;&emsp;&emsp;libs\
 &emsp;&emsp;&emsp;&emsp;&emsp;include\
